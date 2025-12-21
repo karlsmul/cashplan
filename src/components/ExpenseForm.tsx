@@ -9,12 +9,17 @@ const ExpenseForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
   const [category, setCategory] = useState<ExpenseCategory>('Alltag');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
     setLoading(true);
+    setError('');
+    setSuccess(false);
+
     try {
       await addExpense({
         amount: parseFloat(amount),
@@ -26,9 +31,12 @@ const ExpenseForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
 
       setAmount('');
       setDescription('');
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Fehler beim Hinzufügen der Ausgabe:', error);
+      setError(error.message || 'Fehler beim Speichern. Bitte überprüfen Sie die Firestore-Regeln.');
     } finally {
       setLoading(false);
     }
@@ -78,6 +86,18 @@ const ExpenseForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
           />
         </div>
       </div>
+
+      {error && (
+        <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-200 text-sm">
+          ❌ {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3 text-green-200 text-sm">
+          ✅ Ausgabe erfolgreich gespeichert!
+        </div>
+      )}
 
       <button
         type="submit"

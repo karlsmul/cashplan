@@ -18,6 +18,8 @@ const Settings: React.FC = () => {
 
   const [newFixedCost, setNewFixedCost] = useState({ name: '', amount: '', months: [] as number[] });
   const [newIncome, setNewIncome] = useState({ name: '', amount: '' });
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const monthNames = [
     'Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun',
@@ -40,27 +42,47 @@ const Settings: React.FC = () => {
     e.preventDefault();
     if (!user) return;
 
-    await addFixedCost({
-      name: newFixedCost.name,
-      amount: parseFloat(newFixedCost.amount),
-      months: newFixedCost.months.length > 0 ? newFixedCost.months : undefined,
-      userId: user.uid
-    });
+    setError('');
+    setSuccess('');
 
-    setNewFixedCost({ name: '', amount: '', months: [] });
+    try {
+      await addFixedCost({
+        name: newFixedCost.name,
+        amount: parseFloat(newFixedCost.amount),
+        months: newFixedCost.months.length > 0 ? newFixedCost.months : undefined,
+        userId: user.uid
+      });
+
+      setNewFixedCost({ name: '', amount: '', months: [] });
+      setSuccess('Fixkosten erfolgreich hinzugefügt!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: any) {
+      console.error('Fehler beim Hinzufügen der Fixkosten:', error);
+      setError(error.message || 'Fehler beim Speichern. Überprüfen Sie die Firestore-Regeln.');
+    }
   };
 
   const handleAddIncome = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
-    await addIncome({
-      name: newIncome.name,
-      amount: parseFloat(newIncome.amount),
-      userId: user.uid
-    });
+    setError('');
+    setSuccess('');
 
-    setNewIncome({ name: '', amount: '' });
+    try {
+      await addIncome({
+        name: newIncome.name,
+        amount: parseFloat(newIncome.amount),
+        userId: user.uid
+      });
+
+      setNewIncome({ name: '', amount: '' });
+      setSuccess('Einnahme erfolgreich hinzugefügt!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: any) {
+      console.error('Fehler beim Hinzufügen der Einnahme:', error);
+      setError(error.message || 'Fehler beim Speichern. Überprüfen Sie die Firestore-Regeln.');
+    }
   };
 
   const handleDeleteFixedCost = async (id: string) => {
@@ -89,6 +111,18 @@ const Settings: React.FC = () => {
       <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-yellow-400 via-green-400 to-blue-400 bg-clip-text text-transparent">
         Einstellungen
       </h1>
+
+      {error && (
+        <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-200 mb-6">
+          ❌ {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-green-200 mb-6">
+          ✅ {success}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Einnahmen */}
