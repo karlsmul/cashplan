@@ -27,22 +27,24 @@ export const addExpense = async (expense: Omit<Expense, 'id'>) => {
 export const getExpenses = async (userId: string, month: number, year: number) => {
   const expensesRef = collection(db, 'expenses');
   const startDate = new Date(year, month, 1);
-  const endDate = new Date(year, month + 1, 0);
+  const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
 
   const q = query(
     expensesRef,
     where('userId', '==', userId),
     where('date', '>=', Timestamp.fromDate(startDate)),
-    where('date', '<=', Timestamp.fromDate(endDate)),
-    orderBy('date', 'desc')
+    where('date', '<=', Timestamp.fromDate(endDate))
   );
 
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({
+  const expenses = snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
     date: doc.data().date.toDate()
   })) as Expense[];
+
+  // Sortierung im Client statt in Firestore (kein Index nötig)
+  return expenses.sort((a, b) => b.date.getTime() - a.date.getTime());
 };
 
 export const deleteExpense = async (expenseId: string) => {
@@ -114,14 +116,13 @@ export const subscribeToExpenses = (
 ) => {
   const expensesRef = collection(db, 'expenses');
   const startDate = new Date(year, month, 1);
-  const endDate = new Date(year, month + 1, 0);
+  const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
 
   const q = query(
     expensesRef,
     where('userId', '==', userId),
     where('date', '>=', Timestamp.fromDate(startDate)),
-    where('date', '<=', Timestamp.fromDate(endDate)),
-    orderBy('date', 'desc')
+    where('date', '<=', Timestamp.fromDate(endDate))
   );
 
   return onSnapshot(q, (snapshot) => {
@@ -130,7 +131,10 @@ export const subscribeToExpenses = (
       ...doc.data(),
       date: doc.data().date.toDate()
     })) as Expense[];
-    callback(expenses);
+
+    // Sortierung im Client
+    const sortedExpenses = expenses.sort((a, b) => b.date.getTime() - a.date.getTime());
+    callback(sortedExpenses);
   });
 };
 
