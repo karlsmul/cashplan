@@ -27,3 +27,12 @@ dist-ssr
 .env
 .env.local
 .env.production
+
+# Firebase
+.firebase/
+.firebaserc
+
+# PWA
+dev-dist/
+sw.js
+workbox-*.js

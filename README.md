@@ -2,6 +2,9 @@
 
 Eine moderne, web-basierte Haushalts-Finanz-App für Desktop und Mobile. Behalten Sie den Überblick über Ihre Finanzen mit Echtzeit-Synchronisation über Firebase.
 
+**🌐 Progressive Web App (PWA)** - Online und Offline nutzbar!
+**🚀 Automatisches Deployment** via GitHub Actions zu Firebase Hosting
+
 ## ✨ Features
 
 ### 📊 Dashboard
@@ -32,25 +35,38 @@ Eine moderne, web-basierte Haushalts-Finanz-App für Desktop und Mobile. Behalte
 - Dark Theme mit glassmorphism Effekten
 - Animierte Übergänge und Interaktionen
 
-## 🚀 Installation
+## 🚀 Schnellstart
 
-### Voraussetzungen
+### Option 1: Firebase Hosting (Empfohlen)
+
+**Die App ist als PWA konfiguriert und wird automatisch über GitHub Actions deployed!**
+
+Folgen Sie der detaillierten Anleitung in **[FIREBASE_SETUP.md](./FIREBASE_SETUP.md)**
+
+Nach dem Setup ist die App erreichbar unter:
+```
+https://ihre-projekt-id.web.app
+```
+
+### Option 2: Lokale Entwicklung
+
+#### Voraussetzungen
 - Node.js (v18 oder höher)
 - npm oder yarn
 - Ein Firebase-Projekt
 
-### Schritt 1: Repository klonen
+#### Schritt 1: Repository klonen
 ```bash
 git clone <repository-url>
 cd cashplan
 ```
 
-### Schritt 2: Dependencies installieren
+#### Schritt 2: Dependencies installieren
 ```bash
 npm install
 ```
 
-### Schritt 3: Firebase konfigurieren
+#### Schritt 3: Firebase konfigurieren
 
 1. Erstellen Sie ein neues Projekt in der [Firebase Console](https://console.firebase.google.com/)
 
@@ -85,53 +101,42 @@ const firebaseConfig = {
 };
 ```
 
-### Schritt 4: Firestore Sicherheitsregeln
-
-Konfigurieren Sie in der Firebase Console unter Firestore Database → Rules:
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /expenses/{expenseId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-    }
-
-    match /fixedCosts/{costId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-    }
-
-    match /incomes/{incomeId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-    }
-  }
-}
-```
-
-### Schritt 5: App starten
+#### Schritt 4: App starten
 ```bash
 npm run dev
 ```
 
 Die App läuft nun auf `http://localhost:3000`
 
-## 🏗️ Build für Produktion
+## 🏗️ Build & Deployment
 
+### Lokaler Build
 ```bash
 npm run build
 npm run preview
 ```
 
+### Automatisches Deployment (Firebase Hosting)
+
+Die App wird automatisch deployed, wenn Sie zum `main` oder `master` Branch pushen:
+
+1. Code ändern
+2. `git commit` und `git push`
+3. GitHub Actions baut und deployed automatisch
+4. App ist sofort unter Ihrer Firebase-URL verfügbar
+
+Details siehe [FIREBASE_SETUP.md](./FIREBASE_SETUP.md)
+
 ## 📱 Technologie-Stack
 
 - **Frontend Framework**: React 19 + TypeScript
 - **Build Tool**: Vite
-- **Styling**: Tailwind CSS 4
+- **Styling**: Tailwind CSS 3
 - **Backend**: Firebase (Authentication + Firestore)
 - **Routing**: React Router v7
+- **PWA**: vite-plugin-pwa + Workbox
+- **CI/CD**: GitHub Actions
+- **Hosting**: Firebase Hosting
 - **Icons**: Heroicons (via SVG)
 
 ## 📁 Projektstruktur
@@ -191,6 +196,25 @@ cashplan/
 2. Sehen Sie detaillierte Aufschlüsselungen nach Kategorien
 3. Vergleichen Sie Ihre Jahresbilanz
 
+## ✨ PWA-Features
+
+Die App ist als Progressive Web App (PWA) konfiguriert:
+
+- **Offline-Funktionalität**: Die App funktioniert auch ohne Internetverbindung
+- **Installierbar**: Kann auf Desktop und Mobile wie eine native App installiert werden
+- **Automatische Updates**: Neue Versionen werden automatisch im Hintergrund geladen
+- **Cache-Strategie**: Intelligentes Caching für optimale Performance
+
+### Installation als App:
+
+**Smartphone (Android/iOS):**
+1. Öffnen Sie die App im Browser
+2. Tippen Sie auf "Zum Startbildschirm hinzufügen"
+
+**Desktop (Chrome/Edge):**
+1. Klicken Sie auf das ⊕-Symbol in der Adressleiste
+2. Klicken Sie auf "Installieren"
+
 ## 🔮 Geplante Features
 
 - [ ] Monatliche Abfrage zur Fixkosten-Übernahme am 1. des Monats
@@ -201,6 +225,7 @@ cashplan/
 - [ ] Push-Benachrichtigungen
 - [ ] Multi-Währungsunterstützung
 - [ ] Datenimport aus Banking-Apps
+- [ ] Dark/Light Mode Toggle
 
 ## 📄 Lizenz
 
