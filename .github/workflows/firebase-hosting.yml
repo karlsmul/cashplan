@@ -5,10 +5,12 @@ on:
     branches:
       - main
       - master
+      - claude/investigate-umgebung2-setting-c1aiq
   pull_request:
     branches:
       - main
       - master
+  workflow_dispatch:
 
 jobs:
   build_and_deploy:
