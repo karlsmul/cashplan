@@ -30,7 +30,6 @@ dist-ssr
 
 # Firebase
 .firebase/
-.firebaserc
 
 # PWA
 dev-dist/
