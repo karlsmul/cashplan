@@ -1,15 +1,18 @@
 export const getWeeksInMonth = (year: number, month: number) => {
   const weeks: { start: Date; end: Date; weekNumber: number }[] = [];
   const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
+  const lastDay = new Date(year, month + 1, 0, 23, 59, 59, 999);
 
   let weekNumber = 1;
   let currentDate = new Date(firstDay);
 
   while (currentDate <= lastDay) {
     const weekStart = new Date(currentDate);
+    weekStart.setHours(0, 0, 0, 0);
+
     const weekEnd = new Date(currentDate);
     weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
 
     if (weekEnd > lastDay) {
       weekEnd.setTime(lastDay.getTime());
@@ -51,7 +54,10 @@ export const getMonthName = (month: number): string => {
 };
 
 export const isInWeek = (date: Date, weekStart: Date, weekEnd: Date): boolean => {
-  return date >= weekStart && date <= weekEnd;
+  const dateTime = date.getTime();
+  const startTime = weekStart.getTime();
+  const endTime = weekEnd.getTime();
+  return dateTime >= startTime && dateTime <= endTime;
 };
 
 export const calculateTrend = (expenses: number[], daysElapsed: number, totalDaysInMonth: number): number => {

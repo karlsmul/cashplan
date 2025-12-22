@@ -46,12 +46,18 @@ const Settings: React.FC = () => {
     setSuccess('');
 
     try {
-      await addFixedCost({
+      const fixedCostData: any = {
         name: newFixedCost.name,
         amount: parseFloat(newFixedCost.amount),
-        months: newFixedCost.months.length > 0 ? newFixedCost.months : undefined,
         userId: user.uid
-      });
+      };
+
+      // Nur months hinzufügen, wenn welche ausgewählt wurden
+      if (newFixedCost.months.length > 0) {
+        fixedCostData.months = newFixedCost.months;
+      }
+
+      await addFixedCost(fixedCostData);
 
       setNewFixedCost({ name: '', amount: '', months: [] });
       setSuccess('Fixkosten erfolgreich hinzugefügt!');
