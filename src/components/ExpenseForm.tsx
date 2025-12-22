@@ -8,6 +8,7 @@ const ExpenseForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<ExpenseCategory>('Alltag');
   const [description, setDescription] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -25,12 +26,13 @@ const ExpenseForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
         amount: parseFloat(amount),
         category,
         description,
-        date: new Date(),
+        date: new Date(date),
         userId: user.uid
       });
 
       setAmount('');
       setDescription('');
+      setDate(new Date().toISOString().split('T')[0]);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
       onSuccess();
@@ -48,7 +50,7 @@ const ExpenseForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
         Neue Ausgabe erfassen
       </h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium mb-2">Betrag (€)</label>
           <input
@@ -58,6 +60,17 @@ const ExpenseForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
             onChange={(e) => setAmount(e.target.value)}
             className="input w-full"
             placeholder="0.00"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2">Datum</label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="input w-full"
             required
           />
         </div>
