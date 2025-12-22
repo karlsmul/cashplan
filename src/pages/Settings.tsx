@@ -7,9 +7,11 @@ import {
   deleteFixedCost,
   deleteIncome,
   subscribeToFixedCosts,
-  subscribeToIncomes
+  subscribeToIncomes,
+  deleteAllExpenses,
+  deleteExpensesForMonth
 } from '../services/firestore';
-import { formatCurrency } from '../utils/dateUtils';
+import { formatCurrency, getMonthName } from '../utils/dateUtils';
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
@@ -20,6 +22,9 @@ const Settings: React.FC = () => {
   const [newIncome, setNewIncome] = useState({ name: '', amount: '' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [deleteMonth, setDeleteMonth] = useState(new Date().getMonth());
+  const [deleteYear, setDeleteYear] = useState(new Date().getFullYear());
+  const [deleting, setDeleting] = useState(false);
 
   const monthNames = [
     'Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun',
@@ -110,6 +115,64 @@ const Settings: React.FC = () => {
         : [...prev.months, month].sort((a, b) => a - b);
       return { ...prev, months };
     });
+  };
+
+  const handleDeleteMonthExpenses = async () => {
+    if (!user) return;
+
+    const monthName = getMonthName(deleteMonth);
+    if (!window.confirm(
+      `⚠️ ACHTUNG: Alle Ausgaben für ${monthName} ${deleteYear} werden unwiderruflich gelöscht!\n\nMöchten Sie wirklich fortfahren?`
+    )) {
+      return;
+    }
+
+    setDeleting(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await deleteExpensesForMonth(user.uid, deleteMonth, deleteYear);
+      setSuccess(`Alle Ausgaben für ${monthName} ${deleteYear} wurden gelöscht.`);
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (error: any) {
+      console.error('Fehler beim Löschen der Ausgaben:', error);
+      setError(error.message || 'Fehler beim Löschen der Ausgaben.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteAllExpenses = async () => {
+    if (!user) return;
+
+    if (!window.confirm(
+      `🚨 WARNUNG: ALLE Ihre Ausgaben werden unwiderruflich gelöscht!\n\nDiese Aktion kann NICHT rückgängig gemacht werden!\n\nMöchten Sie wirklich ALLE Ausgaben löschen?`
+    )) {
+      return;
+    }
+
+    // Doppelte Bestätigung für kritische Aktion
+    if (!window.confirm(
+      `Sind Sie sich wirklich sicher?\n\nDies ist Ihre letzte Chance!\n\nALLE Ausgaben werden gelöscht!`
+    )) {
+      return;
+    }
+
+    setDeleting(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await deleteAllExpenses(user.uid);
+      setSuccess('Alle Ausgaben wurden gelöscht.');
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (error: any) {
+      console.error('Fehler beim Löschen aller Ausgaben:', error);
+      setError(error.message || 'Fehler beim Löschen der Ausgaben.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -283,6 +346,85 @@ const Settings: React.FC = () => {
               {fixedCosts.length === 0 && (
                 <p className="text-white/60 text-center py-8">Noch keine Fixkosten erfasst</p>
               )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Datenverwaltung */}
+      <div className="mt-8">
+        <div className="card bg-gradient-to-br from-orange-500/20 to-red-500/20 border-orange-500/30">
+          <h2 className="text-2xl font-bold mb-4 text-orange-400">⚠️ Datenverwaltung</h2>
+          <p className="text-white/70 mb-6">
+            Hier können Sie Ausgaben löschen. Diese Aktionen können nicht rückgängig gemacht werden!
+          </p>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Monat löschen */}
+            <div className="bg-white/5 rounded-lg p-6">
+              <h3 className="text-lg font-bold text-orange-300 mb-4">Ausgaben eines Monats löschen</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Monat</label>
+                    <select
+                      value={deleteMonth}
+                      onChange={(e) => setDeleteMonth(parseInt(e.target.value))}
+                      className="select w-full"
+                      disabled={deleting}
+                    >
+                      {Array.from({ length: 12 }, (_, i) => (
+                        <option key={i} value={i}>
+                          {getMonthName(i)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Jahr</label>
+                    <select
+                      value={deleteYear}
+                      onChange={(e) => setDeleteYear(parseInt(e.target.value))}
+                      className="select w-full"
+                      disabled={deleting}
+                    >
+                      {Array.from({ length: 5 }, (_, i) => {
+                        const year = new Date().getFullYear() - i;
+                        return (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                </div>
+                <button
+                  onClick={handleDeleteMonthExpenses}
+                  disabled={deleting}
+                  className="w-full bg-orange-500/20 hover:bg-orange-500/40 text-orange-300 font-bold py-3 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleting ? 'Wird gelöscht...' : `${getMonthName(deleteMonth)} ${deleteYear} löschen`}
+                </button>
+              </div>
+            </div>
+
+            {/* Alle Ausgaben löschen */}
+            <div className="bg-white/5 rounded-lg p-6">
+              <h3 className="text-lg font-bold text-red-300 mb-4">🚨 Alle Ausgaben löschen</h3>
+              <p className="text-white/60 text-sm mb-4">
+                Diese Aktion löscht ALLE Ihre Ausgaben unwiderruflich. Fixkosten und Einnahmen bleiben erhalten.
+              </p>
+              <button
+                onClick={handleDeleteAllExpenses}
+                disabled={deleting}
+                className="w-full bg-red-500/20 hover:bg-red-500/40 text-red-300 font-bold py-3 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed border-2 border-red-500/50"
+              >
+                {deleting ? 'Wird gelöscht...' : 'ALLE Ausgaben löschen'}
+              </button>
+              <p className="text-red-400/70 text-xs mt-2 text-center">
+                ⚠️ Diese Aktion erfordert doppelte Bestätigung
+              </p>
             </div>
           </div>
         </div>

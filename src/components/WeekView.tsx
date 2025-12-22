@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Expense } from '../types';
 import { formatCurrency, formatDate } from '../utils/dateUtils';
+import { deleteExpense } from '../services/firestore';
 
 interface WeekViewProps {
   weekNumber: number;
@@ -11,6 +12,23 @@ interface WeekViewProps {
 
 const WeekView: React.FC<WeekViewProps> = ({ weekNumber, startDate, endDate, expenses }) => {
   const [expanded, setExpanded] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (expense: Expense) => {
+    if (!window.confirm(`Möchten Sie diese Ausgabe wirklich löschen?\n\n"${expense.description}" - ${formatCurrency(expense.amount)}`)) {
+      return;
+    }
+
+    setDeletingId(expense.id);
+    try {
+      await deleteExpense(expense.id);
+    } catch (error) {
+      console.error('Fehler beim Löschen der Ausgabe:', error);
+      alert('Fehler beim Löschen der Ausgabe. Bitte versuchen Sie es erneut.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const total = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
@@ -68,7 +86,7 @@ const WeekView: React.FC<WeekViewProps> = ({ weekNumber, startDate, endDate, exp
                 {dayExpenses.map((expense) => (
                   <div
                     key={expense.id}
-                    className="flex items-center justify-between bg-white/5 rounded-lg p-3"
+                    className="flex items-center justify-between bg-white/5 rounded-lg p-3 group"
                   >
                     <div className="flex-1">
                       <p className="font-medium">{expense.description}</p>
@@ -84,9 +102,19 @@ const WeekView: React.FC<WeekViewProps> = ({ weekNumber, startDate, endDate, exp
                         </span>
                       </p>
                     </div>
-                    <p className="text-lg font-bold text-red-400">
-                      -{formatCurrency(expense.amount)}
-                    </p>
+                    <div className="flex items-center gap-3">
+                      <p className="text-lg font-bold text-red-400">
+                        -{formatCurrency(expense.amount)}
+                      </p>
+                      <button
+                        onClick={() => handleDelete(expense)}
+                        disabled={deletingId === expense.id}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity bg-red-500/20 hover:bg-red-500/40 text-red-300 px-3 py-1 rounded-lg text-sm font-medium disabled:opacity-50"
+                        title="Ausgabe löschen"
+                      >
+                        {deletingId === expense.id ? '...' : '🗑️'}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -54,6 +54,32 @@ export const updateExpense = async (expenseId: string, data: Partial<Expense>) =
   await updateDoc(doc(db, 'expenses', expenseId), data);
 };
 
+export const deleteAllExpenses = async (userId: string) => {
+  const expensesRef = collection(db, 'expenses');
+  const q = query(expensesRef, where('userId', '==', userId));
+  const snapshot = await getDocs(q);
+
+  const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+  await Promise.all(deletePromises);
+};
+
+export const deleteExpensesForMonth = async (userId: string, month: number, year: number) => {
+  const expensesRef = collection(db, 'expenses');
+  const startDate = new Date(year, month, 1);
+  const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+  const q = query(
+    expensesRef,
+    where('userId', '==', userId),
+    where('date', '>=', Timestamp.fromDate(startDate)),
+    where('date', '<=', Timestamp.fromDate(endDate))
+  );
+
+  const snapshot = await getDocs(q);
+  const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+  await Promise.all(deletePromises);
+};
+
 // Fixed Costs
 export const addFixedCost = async (fixedCost: Omit<FixedCost, 'id'>) => {
   const fixedCostsRef = collection(db, 'fixedCosts');
