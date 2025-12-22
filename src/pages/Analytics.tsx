@@ -9,6 +9,7 @@ const Analytics: React.FC = () => {
   const currentYear = new Date().getFullYear();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [sortBy, setSortBy] = useState<'date' | 'amount-desc' | 'amount-asc'>('date');
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
@@ -40,9 +41,22 @@ const Analytics: React.FC = () => {
     .filter((cost) => !cost.months || cost.months.includes(selectedMonth + 1))
     .reduce((sum, cost) => sum + cost.amount, 0);
 
+  const sortExpenses = (expenseList: Expense[]) => {
+    const sorted = [...expenseList];
+    switch (sortBy) {
+      case 'amount-desc':
+        return sorted.sort((a, b) => b.amount - a.amount);
+      case 'amount-asc':
+        return sorted.sort((a, b) => a.amount - b.amount);
+      case 'date':
+      default:
+        return sorted.sort((a, b) => b.date.getTime() - a.date.getTime());
+    }
+  };
+
   const expensesByCategory: Record<ExpenseCategory, Expense[]> = {
-    Alltag: expenses.filter((e) => e.category === 'Alltag'),
-    Sonderposten: expenses.filter((e) => e.category === 'Sonderposten')
+    Alltag: sortExpenses(expenses.filter((e) => e.category === 'Alltag')),
+    Sonderposten: sortExpenses(expenses.filter((e) => e.category === 'Sonderposten'))
   };
 
   const totalAlltagExpenses = expensesByCategory.Alltag.reduce((sum, e) => sum + e.amount, 0);
@@ -101,7 +115,7 @@ const Analytics: React.FC = () => {
 
       {/* Month Selector */}
       <div className="card mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2">Monat</label>
             <select
@@ -128,6 +142,18 @@ const Analytics: React.FC = () => {
                   {year}
                 </option>
               ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Sortierung</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'date' | 'amount-desc' | 'amount-asc')}
+              className="select w-full"
+            >
+              <option value="date">Nach Datum</option>
+              <option value="amount-desc">Nach Betrag (absteigend)</option>
+              <option value="amount-asc">Nach Betrag (aufsteigend)</option>
             </select>
           </div>
         </div>

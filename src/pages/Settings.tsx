@@ -27,6 +27,11 @@ const Settings: React.FC = () => {
   const [deleteYear, setDeleteYear] = useState(new Date().getFullYear());
   const [deleting, setDeleting] = useState(false);
 
+  const [editingIncome, setEditingIncome] = useState<Income | null>(null);
+  const [editIncomeForm, setEditIncomeForm] = useState({ name: '', amount: '', months: [] as number[] });
+  const [editingFixedCost, setEditingFixedCost] = useState<FixedCost | null>(null);
+  const [editFixedCostForm, setEditFixedCostForm] = useState({ name: '', amount: '', months: [] as number[] });
+
   const monthNames = [
     'Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun',
     'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'
@@ -152,6 +157,92 @@ const Settings: React.FC = () => {
         : [...prev.months, month].sort((a, b) => a - b);
       return { ...prev, months };
     });
+  };
+
+  const toggleEditIncomeMonth = (month: number) => {
+    setEditIncomeForm((prev) => {
+      const months = prev.months.includes(month)
+        ? prev.months.filter((m) => m !== month)
+        : [...prev.months, month].sort((a, b) => a - b);
+      return { ...prev, months };
+    });
+  };
+
+  const toggleEditFixedCostMonth = (month: number) => {
+    setEditFixedCostForm((prev) => {
+      const months = prev.months.includes(month)
+        ? prev.months.filter((m) => m !== month)
+        : [...prev.months, month].sort((a, b) => a - b);
+      return { ...prev, months };
+    });
+  };
+
+  const handleEditIncome = (income: Income) => {
+    setEditingIncome(income);
+    setEditIncomeForm({
+      name: income.name,
+      amount: income.amount.toString(),
+      months: income.months || []
+    });
+  };
+
+  const handleSaveIncome = async () => {
+    if (!editingIncome) return;
+
+    try {
+      const updateData: any = {
+        name: editIncomeForm.name,
+        amount: parseFloat(editIncomeForm.amount)
+      };
+
+      if (editIncomeForm.months.length > 0) {
+        updateData.months = editIncomeForm.months;
+      } else {
+        updateData.months = [];
+      }
+
+      await updateIncome(editingIncome.id, updateData);
+      setEditingIncome(null);
+      setSuccess('Einnahme erfolgreich aktualisiert!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: any) {
+      console.error('Fehler beim Aktualisieren der Einnahme:', error);
+      setError(error.message || 'Fehler beim Aktualisieren.');
+    }
+  };
+
+  const handleEditFixedCost = (cost: FixedCost) => {
+    setEditingFixedCost(cost);
+    setEditFixedCostForm({
+      name: cost.name,
+      amount: cost.amount.toString(),
+      months: cost.months || []
+    });
+  };
+
+  const handleSaveFixedCost = async () => {
+    if (!editingFixedCost) return;
+
+    try {
+      const updateData: any = {
+        name: editFixedCostForm.name,
+        amount: parseFloat(editFixedCostForm.amount)
+      };
+
+      if (editFixedCostForm.months.length > 0) {
+        updateData.months = editFixedCostForm.months;
+      } else {
+        updateData.months = [];
+      }
+
+      await updateFixedCost(editingFixedCost.id, updateData);
+      setEditingFixedCost(null);
+      setSuccess('Fixkosten erfolgreich aktualisiert!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: any) {
+      console.error('Fehler beim Aktualisieren der Fixkosten:', error);
+      setError(error.message || 'Fehler beim Aktualisieren.');
+    }
   };
 
   const handleDeleteMonthExpenses = async () => {
@@ -290,29 +381,94 @@ const Settings: React.FC = () => {
             <h3 className="text-xl font-bold mb-4 text-green-300">Ihre Einnahmen</h3>
             <div className="space-y-3">
               {incomes.map((income) => (
-                <div
-                  key={income.id}
-                  className="flex items-center justify-between bg-white/5 rounded-lg p-4"
-                >
-                  <div className="flex-1">
-                    <p className="font-medium">{income.name}</p>
-                    <p className="text-2xl font-bold text-green-400">
-                      {formatCurrency(income.amount)}
-                    </p>
-                    {income.months && income.months.length > 0 && (
-                      <p className="text-sm text-white/60 mt-1">
-                        Nur in: {income.months.map((m) => monthNames[m - 1]).join(', ')}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => handleDeleteIncome(income.id)}
-                    className="text-red-400 hover:text-red-300"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+                <div key={income.id}>
+                  {editingIncome?.id === income.id ? (
+                    // Edit-Formular
+                    <div className="bg-white/10 rounded-lg p-4 space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Bezeichnung</label>
+                        <input
+                          type="text"
+                          value={editIncomeForm.name}
+                          onChange={(e) => setEditIncomeForm({ ...editIncomeForm, name: e.target.value })}
+                          className="input w-full"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Betrag (€)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editIncomeForm.amount}
+                          onChange={(e) => setEditIncomeForm({ ...editIncomeForm, amount: e.target.value })}
+                          className="input w-full"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Monate</label>
+                        <div className="grid grid-cols-6 gap-2">
+                          {monthNames.map((month, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => toggleEditIncomeMonth(index + 1)}
+                              className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                                editIncomeForm.months.includes(index + 1)
+                                  ? 'bg-green-600 text-white'
+                                  : 'bg-white/10 text-white/60 hover:bg-white/20'
+                              }`}
+                            >
+                              {month}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={handleSaveIncome} className="btn-primary flex-1">
+                          ✓ Speichern
+                        </button>
+                        <button
+                          onClick={() => setEditingIncome(null)}
+                          className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg"
+                        >
+                          Abbrechen
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    // Normal-Ansicht
+                    <div className="flex items-center justify-between bg-white/5 rounded-lg p-4 group">
+                      <div className="flex-1">
+                        <p className="font-medium">{income.name}</p>
+                        <p className="text-2xl font-bold text-green-400">
+                          {formatCurrency(income.amount)}
+                        </p>
+                        {income.months && income.months.length > 0 && (
+                          <p className="text-sm text-white/60 mt-1">
+                            Nur in: {income.months.map((m) => monthNames[m - 1]).join(', ')}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEditIncome(income)}
+                          className="opacity-0 group-hover:opacity-100 text-blue-400 hover:text-blue-300 transition-opacity"
+                        >
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteIncome(income.id)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
               {incomes.length === 0 && (
@@ -390,44 +546,114 @@ const Settings: React.FC = () => {
                 const isPaid = cost.paidMonths?.includes(monthKey) || false;
 
                 return (
-                  <div
-                    key={cost.id}
-                    onClick={() => toggleFixedCostPaid(cost)}
-                    className={`flex items-center justify-between rounded-lg p-4 cursor-pointer transition-all ${
-                      isPaid
-                        ? 'bg-green-500/20 border-2 border-green-500/50'
-                        : 'bg-white/5 border-2 border-transparent hover:border-white/20'
-                    }`}
-                  >
-                    <div className="flex-1 pointer-events-none">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{cost.name}</p>
-                        {isPaid && (
-                          <span className="text-xs bg-green-500/30 text-green-300 px-2 py-1 rounded-full">
-                            ✓ Bezahlt
-                          </span>
-                        )}
+                  <div key={cost.id}>
+                    {editingFixedCost?.id === cost.id ? (
+                      // Edit-Formular
+                      <div className="bg-white/10 rounded-lg p-4 space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Bezeichnung</label>
+                          <input
+                            type="text"
+                            value={editFixedCostForm.name}
+                            onChange={(e) => setEditFixedCostForm({ ...editFixedCostForm, name: e.target.value })}
+                            className="input w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Betrag (€)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editFixedCostForm.amount}
+                            onChange={(e) => setEditFixedCostForm({ ...editFixedCostForm, amount: e.target.value })}
+                            className="input w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Monate</label>
+                          <div className="grid grid-cols-6 gap-2">
+                            {monthNames.map((month, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => toggleEditFixedCostMonth(index + 1)}
+                                className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                                  editFixedCostForm.months.includes(index + 1)
+                                    ? 'bg-purple-600 text-white'
+                                    : 'bg-white/10 text-white/60 hover:bg-white/20'
+                                }`}
+                              >
+                                {month}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={handleSaveFixedCost} className="btn-primary flex-1">
+                            ✓ Speichern
+                          </button>
+                          <button
+                            onClick={() => setEditingFixedCost(null)}
+                            className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg"
+                          >
+                            Abbrechen
+                          </button>
+                        </div>
                       </div>
-                      <p className={`text-2xl font-bold ${isPaid ? 'text-green-400' : 'text-red-400'}`}>
-                        {formatCurrency(cost.amount)}
-                      </p>
-                      {cost.months && cost.months.length > 0 && (
-                        <p className="text-sm text-white/60 mt-1">
-                          Nur in: {cost.months.map((m) => monthNames[m - 1]).join(', ')}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteFixedCost(cost.id);
-                      }}
-                      className="text-red-400 hover:text-red-300 pointer-events-auto"
-                    >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    ) : (
+                      // Normal-Ansicht
+                      <div
+                        onClick={() => toggleFixedCostPaid(cost)}
+                        className={`flex items-center justify-between rounded-lg p-4 cursor-pointer transition-all group ${
+                          isPaid
+                            ? 'bg-green-500/20 border-2 border-green-500/50'
+                            : 'bg-white/5 border-2 border-transparent hover:border-white/20'
+                        }`}
+                      >
+                        <div className="flex-1 pointer-events-none">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{cost.name}</p>
+                            {isPaid && (
+                              <span className="text-xs bg-green-500/30 text-green-300 px-2 py-1 rounded-full">
+                                ✓ Bezahlt
+                              </span>
+                            )}
+                          </div>
+                          <p className={`text-2xl font-bold ${isPaid ? 'text-green-400' : 'text-red-400'}`}>
+                            {formatCurrency(cost.amount)}
+                          </p>
+                          {cost.months && cost.months.length > 0 && (
+                            <p className="text-sm text-white/60 mt-1">
+                              Nur in: {cost.months.map((m) => monthNames[m - 1]).join(', ')}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-2 pointer-events-auto">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditFixedCost(cost);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 text-blue-400 hover:text-blue-300 transition-opacity"
+                          >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteFixedCost(cost.id);
+                            }}
+                            className="text-red-400 hover:text-red-300"
+                          >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
