@@ -87,15 +87,42 @@ const Analytics: React.FC = () => {
 
       const allYearExpenses = await loadYearExpenses();
       const yearTotalExpenses = (allYearExpenses || []).reduce((sum, e) => sum + e.amount, 0);
-      const yearFixedCosts = fixedCosts.reduce((sum, cost) => {
-        const months = cost.months?.length || 12;
-        return sum + (cost.amount * months);
-      }, 0);
 
-      const yearTotalIncome = incomes.reduce((sum, income) => {
-        const months = income.months?.length || 12;
-        return sum + (income.amount * months);
-      }, 0);
+      // IST-Werte: Nur Fixkosten/Einnahmen für tatsächlich vergangene Monate berechnen
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth(); // 0-11
+
+      // Bestimme, bis zu welchem Monat wir zählen sollen
+      let maxMonth: number;
+      if (selectedYear > currentYear) {
+        // Zukünftiges Jahr: keine Daten
+        maxMonth = 0;
+      } else if (selectedYear === currentYear) {
+        // Aktuelles Jahr: bis zum aktuellen Monat
+        maxMonth = currentMonth + 1; // 1-12
+      } else {
+        // Vergangenes Jahr: alle 12 Monate
+        maxMonth = 12;
+      }
+
+      let yearFixedCosts = 0;
+      let yearTotalIncome = 0;
+
+      // Für jeden Monat des Jahres (bis zum aktuellen Monat, falls selectedYear === currentYear)
+      for (let month = 1; month <= maxMonth; month++) {
+        // Fixkosten für diesen Monat
+        const monthFixedCosts = fixedCosts
+          .filter((cost) => !cost.months || cost.months.includes(month))
+          .reduce((sum, cost) => sum + cost.amount, 0);
+        yearFixedCosts += monthFixedCosts;
+
+        // Einnahmen für diesen Monat
+        const monthIncomes = incomes
+          .filter((income) => !income.months || income.months.includes(month))
+          .reduce((sum, income) => sum + income.amount, 0);
+        yearTotalIncome += monthIncomes;
+      }
 
       setYearData({
         totalIncome: yearTotalIncome,
