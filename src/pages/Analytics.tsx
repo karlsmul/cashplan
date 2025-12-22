@@ -34,7 +34,17 @@ const Analytics: React.FC = () => {
   }, [user, selectedMonth, selectedYear]);
 
   const totalIncome = incomes
-    .filter((income) => !income.months || income.months.includes(selectedMonth + 1))
+    .filter((income) => {
+      const selectedYearMonth = selectedYear * 100 + (selectedMonth + 1); // YYYYMM
+
+      // Prüfe zuerst spezifische Monate
+      if (income.specificMonths && income.specificMonths.length > 0) {
+        return income.specificMonths.includes(selectedYearMonth);
+      }
+
+      // Sonst prüfe wiederkehrende Monate
+      return !income.months || income.months.includes(selectedMonth + 1);
+    })
     .reduce((sum, income) => sum + income.amount, 0);
 
   const monthlyFixedCosts = fixedCosts
@@ -88,29 +98,21 @@ const Analytics: React.FC = () => {
       const allYearExpenses = await loadYearExpenses();
       const yearTotalExpenses = (allYearExpenses || []).reduce((sum, e) => sum + e.amount, 0);
 
-      // IST-Werte: Nur Fixkosten/Einnahmen für tatsächlich vergangene Monate berechnen
-      const currentDate = new Date();
-      const currentYear = currentDate.getFullYear();
-      const currentMonth = currentDate.getMonth(); // 0-11
-
-      // Bestimme, bis zu welchem Monat wir zählen sollen
-      let maxMonth: number;
-      if (selectedYear > currentYear) {
-        // Zukünftiges Jahr: keine Daten
-        maxMonth = 0;
-      } else if (selectedYear === currentYear) {
-        // Aktuelles Jahr: bis zum aktuellen Monat
-        maxMonth = currentMonth + 1; // 1-12
-      } else {
-        // Vergangenes Jahr: alle 12 Monate
-        maxMonth = 12;
-      }
+      // IST-Werte: Nur Monate berücksichtigen, für die tatsächlich Ausgaben vorhanden sind
+      // Finde heraus, in welchen Monaten Ausgaben vorhanden sind
+      const monthsWithExpenses = new Set<number>();
+      allYearExpenses?.forEach((expense) => {
+        const expenseMonth = expense.date.getMonth() + 1; // 1-12
+        monthsWithExpenses.add(expenseMonth);
+      });
 
       let yearFixedCosts = 0;
       let yearTotalIncome = 0;
 
-      // Für jeden Monat des Jahres (bis zum aktuellen Monat, falls selectedYear === currentYear)
-      for (let month = 1; month <= maxMonth; month++) {
+      // Nur für Monate rechnen, in denen tatsächlich Ausgaben vorhanden sind
+      monthsWithExpenses.forEach((month) => {
+        const yearMonth = selectedYear * 100 + month; // YYYYMM
+
         // Fixkosten für diesen Monat
         const monthFixedCosts = fixedCosts
           .filter((cost) => !cost.months || cost.months.includes(month))
@@ -119,10 +121,18 @@ const Analytics: React.FC = () => {
 
         // Einnahmen für diesen Monat
         const monthIncomes = incomes
-          .filter((income) => !income.months || income.months.includes(month))
+          .filter((income) => {
+            // Prüfe zuerst spezifische Monate
+            if (income.specificMonths && income.specificMonths.length > 0) {
+              return income.specificMonths.includes(yearMonth);
+            }
+
+            // Sonst prüfe wiederkehrende Monate
+            return !income.months || income.months.includes(month);
+          })
           .reduce((sum, income) => sum + income.amount, 0);
         yearTotalIncome += monthIncomes;
-      }
+      });
 
       setYearData({
         totalIncome: yearTotalIncome,

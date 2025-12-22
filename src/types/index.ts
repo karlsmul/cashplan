@@ -22,7 +22,8 @@ export interface Income {
   id: string;
   name: string;
   amount: number;
-  months?: number[]; // 1-12, wenn nicht angegeben: alle Monate
+  months?: number[]; // 1-12, für wiederkehrende Einnahmen
+  specificMonths?: number[]; // YYYYMM (z.B. 202601 für Januar 2026), für einmalige Einnahmen
   userId: string;
 }
 
