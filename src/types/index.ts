@@ -14,6 +14,7 @@ export interface FixedCost {
   name: string;
   amount: number;
   months?: number[]; // 1-12, wenn nicht angegeben: alle Monate
+  paidMonths?: number[]; // Monate, in denen die Kosten bereits bezahlt wurden (Format: YYYYMM als number, z.B. 202412)
   userId: string;
 }
 
@@ -21,6 +22,7 @@ export interface Income {
   id: string;
   name: string;
   amount: number;
+  months?: number[]; // 1-12, wenn nicht angegeben: alle Monate
   userId: string;
 }
 

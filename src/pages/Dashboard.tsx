@@ -41,7 +41,9 @@ const Dashboard: React.FC = () => {
     };
   }, [user, currentMonth, currentYear]);
 
-  const totalIncome = incomes.reduce((sum, income) => sum + income.amount, 0);
+  const totalIncome = incomes
+    .filter((income) => !income.months || income.months.includes(currentMonth + 1))
+    .reduce((sum, income) => sum + income.amount, 0);
 
   const monthlyFixedCosts = fixedCosts
     .filter((cost) => !cost.months || cost.months.includes(currentMonth + 1))

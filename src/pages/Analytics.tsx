@@ -32,7 +32,9 @@ const Analytics: React.FC = () => {
     loadData();
   }, [user, selectedMonth, selectedYear]);
 
-  const totalIncome = incomes.reduce((sum, income) => sum + income.amount, 0);
+  const totalIncome = incomes
+    .filter((income) => !income.months || income.months.includes(selectedMonth + 1))
+    .reduce((sum, income) => sum + income.amount, 0);
 
   const monthlyFixedCosts = fixedCosts
     .filter((cost) => !cost.months || cost.months.includes(selectedMonth + 1))
@@ -76,7 +78,10 @@ const Analytics: React.FC = () => {
         return sum + (cost.amount * months);
       }, 0);
 
-      const yearTotalIncome = totalIncome * 12;
+      const yearTotalIncome = incomes.reduce((sum, income) => {
+        const months = income.months?.length || 12;
+        return sum + (income.amount * months);
+      }, 0);
 
       setYearData({
         totalIncome: yearTotalIncome,
@@ -86,7 +91,7 @@ const Analytics: React.FC = () => {
     };
 
     loadYearData();
-  }, [user, selectedYear, fixedCosts, totalIncome]);
+  }, [user, selectedYear, fixedCosts, incomes]);
 
   return (
     <div className="container mx-auto px-4 py-8">

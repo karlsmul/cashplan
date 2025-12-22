@@ -6,6 +6,7 @@ import {
   addIncome,
   deleteFixedCost,
   deleteIncome,
+  updateFixedCost,
   subscribeToFixedCosts,
   subscribeToIncomes,
   deleteAllExpenses,
@@ -19,7 +20,7 @@ const Settings: React.FC = () => {
   const [incomes, setIncomes] = useState<Income[]>([]);
 
   const [newFixedCost, setNewFixedCost] = useState({ name: '', amount: '', months: [] as number[] });
-  const [newIncome, setNewIncome] = useState({ name: '', amount: '' });
+  const [newIncome, setNewIncome] = useState({ name: '', amount: '', months: [] as number[] });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [deleteMonth, setDeleteMonth] = useState(new Date().getMonth());
@@ -81,13 +82,20 @@ const Settings: React.FC = () => {
     setSuccess('');
 
     try {
-      await addIncome({
+      const incomeData: any = {
         name: newIncome.name,
         amount: parseFloat(newIncome.amount),
         userId: user.uid
-      });
+      };
 
-      setNewIncome({ name: '', amount: '' });
+      // Nur months hinzufügen, wenn welche ausgewählt wurden
+      if (newIncome.months.length > 0) {
+        incomeData.months = newIncome.months;
+      }
+
+      await addIncome(incomeData);
+
+      setNewIncome({ name: '', amount: '', months: [] });
       setSuccess('Einnahme erfolgreich hinzugefügt!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
@@ -108,8 +116,37 @@ const Settings: React.FC = () => {
     }
   };
 
+  const toggleFixedCostPaid = async (cost: FixedCost) => {
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    const monthKey = currentYear * 100 + (currentMonth + 1); // Format: YYYYMM (z.B. 202412)
+
+    const paidMonths = cost.paidMonths || [];
+    const isPaid = paidMonths.includes(monthKey);
+
+    const updatedPaidMonths = isPaid
+      ? paidMonths.filter(m => m !== monthKey)
+      : [...paidMonths, monthKey];
+
+    try {
+      await updateFixedCost(cost.id, { paidMonths: updatedPaidMonths });
+    } catch (error) {
+      console.error('Fehler beim Aktualisieren des Bezahlt-Status:', error);
+      setError('Fehler beim Aktualisieren des Bezahlt-Status.');
+    }
+  };
+
   const toggleMonth = (month: number) => {
     setNewFixedCost((prev) => {
+      const months = prev.months.includes(month)
+        ? prev.months.filter((m) => m !== month)
+        : [...prev.months, month].sort((a, b) => a - b);
+      return { ...prev, months };
+    });
+  };
+
+  const toggleIncomeMonth = (month: number) => {
+    setNewIncome((prev) => {
       const months = prev.months.includes(month)
         ? prev.months.filter((m) => m !== month)
         : [...prev.months, month].sort((a, b) => a - b);
@@ -222,6 +259,27 @@ const Settings: React.FC = () => {
                   required
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Monate (leer lassen für alle Monate)
+                </label>
+                <div className="grid grid-cols-6 gap-2">
+                  {monthNames.map((month, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => toggleIncomeMonth(index + 1)}
+                      className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                        newIncome.months.includes(index + 1)
+                          ? 'bg-green-600 text-white'
+                          : 'bg-white/10 text-white/60 hover:bg-white/20'
+                      }`}
+                    >
+                      {month}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <button type="submit" className="btn-primary w-full">
                 Einnahme hinzufügen
               </button>
@@ -236,11 +294,16 @@ const Settings: React.FC = () => {
                   key={income.id}
                   className="flex items-center justify-between bg-white/5 rounded-lg p-4"
                 >
-                  <div>
+                  <div className="flex-1">
                     <p className="font-medium">{income.name}</p>
                     <p className="text-2xl font-bold text-green-400">
                       {formatCurrency(income.amount)}
                     </p>
+                    {income.months && income.months.length > 0 && (
+                      <p className="text-sm text-white/60 mt-1">
+                        Nur in: {income.months.map((m) => monthNames[m - 1]).join(', ')}
+                      </p>
+                    )}
                   </div>
                   <button
                     onClick={() => handleDeleteIncome(income.id)}
@@ -316,33 +379,58 @@ const Settings: React.FC = () => {
 
           <div className="card">
             <h3 className="text-xl font-bold mb-4 text-red-300">Ihre Fixkosten</h3>
+            <p className="text-sm text-white/60 mb-4">
+              💡 Klicken Sie auf eine Fixkosten-Karte, um sie für diesen Monat als bezahlt zu markieren
+            </p>
             <div className="space-y-3">
-              {fixedCosts.map((cost) => (
-                <div
-                  key={cost.id}
-                  className="flex items-center justify-between bg-white/5 rounded-lg p-4"
-                >
-                  <div className="flex-1">
-                    <p className="font-medium">{cost.name}</p>
-                    <p className="text-2xl font-bold text-red-400">
-                      {formatCurrency(cost.amount)}
-                    </p>
-                    {cost.months && cost.months.length > 0 && (
-                      <p className="text-sm text-white/60 mt-1">
-                        Nur in: {cost.months.map((m) => monthNames[m - 1]).join(', ')}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => handleDeleteFixedCost(cost.id)}
-                    className="text-red-400 hover:text-red-300"
+              {fixedCosts.map((cost) => {
+                const currentMonth = new Date().getMonth();
+                const currentYear = new Date().getFullYear();
+                const monthKey = currentYear * 100 + (currentMonth + 1);
+                const isPaid = cost.paidMonths?.includes(monthKey) || false;
+
+                return (
+                  <div
+                    key={cost.id}
+                    onClick={() => toggleFixedCostPaid(cost)}
+                    className={`flex items-center justify-between rounded-lg p-4 cursor-pointer transition-all ${
+                      isPaid
+                        ? 'bg-green-500/20 border-2 border-green-500/50'
+                        : 'bg-white/5 border-2 border-transparent hover:border-white/20'
+                    }`}
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
+                    <div className="flex-1 pointer-events-none">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{cost.name}</p>
+                        {isPaid && (
+                          <span className="text-xs bg-green-500/30 text-green-300 px-2 py-1 rounded-full">
+                            ✓ Bezahlt
+                          </span>
+                        )}
+                      </div>
+                      <p className={`text-2xl font-bold ${isPaid ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatCurrency(cost.amount)}
+                      </p>
+                      {cost.months && cost.months.length > 0 && (
+                        <p className="text-sm text-white/60 mt-1">
+                          Nur in: {cost.months.map((m) => monthNames[m - 1]).join(', ')}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteFixedCost(cost.id);
+                      }}
+                      className="text-red-400 hover:text-red-300 pointer-events-auto"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })}
               {fixedCosts.length === 0 && (
                 <p className="text-white/60 text-center py-8">Noch keine Fixkosten erfasst</p>
               )}
