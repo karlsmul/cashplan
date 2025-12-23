@@ -15,6 +15,7 @@ const WeekView: React.FC<WeekViewProps> = ({ weekNumber, startDate, endDate, exp
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [editForm, setEditForm] = useState({ amount: '', description: '', category: 'Alltag' as ExpenseCategory, date: '' });
+  const [sortBy, setSortBy] = useState<'date' | 'amount-desc' | 'amount-asc'>('date');
 
   const handleDelete = async (expense: Expense) => {
     if (!window.confirm(`Möchten Sie diese Ausgabe wirklich löschen?\n\n"${expense.description}" - ${formatCurrency(expense.amount)}`)) {
@@ -63,12 +64,26 @@ const WeekView: React.FC<WeekViewProps> = ({ weekNumber, startDate, endDate, exp
     setEditingExpense(null);
   };
 
+  // Sortier-Funktion
+  const sortExpenses = (expenseList: Expense[]) => {
+    const sorted = [...expenseList];
+    switch (sortBy) {
+      case 'amount-desc':
+        return sorted.sort((a, b) => b.amount - a.amount);
+      case 'amount-asc':
+        return sorted.sort((a, b) => a.amount - b.amount);
+      case 'date':
+      default:
+        return sorted.sort((a, b) => b.date.getTime() - a.date.getTime());
+    }
+  };
+
   // Wochensumme nur aus "Alltag"-Ausgaben berechnen
   const weekTotal = expenses
     .filter(exp => exp.category === 'Alltag')
     .reduce((sum, exp) => sum + exp.amount, 0);
 
-  const expensesByDay = expenses.reduce((acc, expense) => {
+  const expensesByDay = sortExpenses(expenses).reduce((acc, expense) => {
     const dateKey = formatDate(expense.date);
     if (!acc[dateKey]) {
       acc[dateKey] = [];
@@ -118,6 +133,19 @@ const WeekView: React.FC<WeekViewProps> = ({ weekNumber, startDate, endDate, exp
 
       {expanded && (
         <div className="mt-6 space-y-4">
+          <div className="flex items-center justify-between mb-4 pb-4 border-b border-white/10">
+            <p className="text-sm text-white/60">Sortierung:</p>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'date' | 'amount-desc' | 'amount-asc')}
+              className="select text-sm"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <option value="date">Nach Datum</option>
+              <option value="amount-desc">Betrag ↓</option>
+              <option value="amount-asc">Betrag ↑</option>
+            </select>
+          </div>
           {Object.entries(expensesByDay).map(([date, dayExpenses]) => (
             <div key={date} className="border-l-4 border-purple-500 pl-4">
               <p className="font-semibold text-purple-300 mb-2">{date}</p>

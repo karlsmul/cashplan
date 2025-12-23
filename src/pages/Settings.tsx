@@ -36,6 +36,10 @@ const Settings: React.FC = () => {
   const [editingFixedCost, setEditingFixedCost] = useState<FixedCost | null>(null);
   const [editFixedCostForm, setEditFixedCostForm] = useState({ name: '', amount: '' });
 
+  // Sortierung
+  const [incomeSortBy, setIncomeSortBy] = useState<'name' | 'amount-desc' | 'amount-asc'>('name');
+  const [fixedCostSortBy, setFixedCostSortBy] = useState<'name' | 'amount-desc' | 'amount-asc'>('name');
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [deleteMonth, setDeleteMonth] = useState(new Date().getMonth());
@@ -248,9 +252,36 @@ const Settings: React.FC = () => {
     }
   };
 
-  // Filtere für ausgewählten Monat
-  const filteredFixedCosts = fixedCosts.filter((cost) => cost.yearMonth === selectedYearMonth);
-  const filteredIncomes = incomes.filter((income) => income.yearMonth === selectedYearMonth);
+  // Sortier-Funktionen
+  const sortIncomes = (incomeList: Income[]) => {
+    const sorted = [...incomeList];
+    switch (incomeSortBy) {
+      case 'amount-desc':
+        return sorted.sort((a, b) => b.amount - a.amount);
+      case 'amount-asc':
+        return sorted.sort((a, b) => a.amount - b.amount);
+      case 'name':
+      default:
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+    }
+  };
+
+  const sortFixedCosts = (costList: FixedCost[]) => {
+    const sorted = [...costList];
+    switch (fixedCostSortBy) {
+      case 'amount-desc':
+        return sorted.sort((a, b) => b.amount - a.amount);
+      case 'amount-asc':
+        return sorted.sort((a, b) => a.amount - b.amount);
+      case 'name':
+      default:
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+    }
+  };
+
+  // Filtere für ausgewählten Monat und sortiere
+  const filteredFixedCosts = sortFixedCosts(fixedCosts.filter((cost) => cost.yearMonth === selectedYearMonth));
+  const filteredIncomes = sortIncomes(incomes.filter((income) => income.yearMonth === selectedYearMonth));
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -364,9 +395,20 @@ const Settings: React.FC = () => {
           </div>
 
           <div className="card">
-            <h3 className="text-xl font-bold mb-4 text-green-300">
-              Einnahmen für {getMonthName(selectedMonth)} {selectedYear}
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-green-300">
+                Einnahmen für {getMonthName(selectedMonth)} {selectedYear}
+              </h3>
+              <select
+                value={incomeSortBy}
+                onChange={(e) => setIncomeSortBy(e.target.value as 'name' | 'amount-desc' | 'amount-asc')}
+                className="select text-sm"
+              >
+                <option value="name">Nach Name</option>
+                <option value="amount-desc">Betrag ↓</option>
+                <option value="amount-asc">Betrag ↑</option>
+              </select>
+            </div>
             <div className="space-y-3">
               {filteredIncomes.map((income) => (
                 <div key={income.id}>
@@ -476,9 +518,20 @@ const Settings: React.FC = () => {
           </div>
 
           <div className="card">
-            <h3 className="text-xl font-bold mb-4 text-red-300">
-              Fixkosten für {getMonthName(selectedMonth)} {selectedYear}
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-red-300">
+                Fixkosten für {getMonthName(selectedMonth)} {selectedYear}
+              </h3>
+              <select
+                value={fixedCostSortBy}
+                onChange={(e) => setFixedCostSortBy(e.target.value as 'name' | 'amount-desc' | 'amount-asc')}
+                className="select text-sm"
+              >
+                <option value="name">Nach Name</option>
+                <option value="amount-desc">Betrag ↓</option>
+                <option value="amount-asc">Betrag ↑</option>
+              </select>
+            </div>
             <p className="text-sm text-white/60 mb-4">
               💡 Klicken Sie auf eine Fixkosten-Karte, um sie für diesen Monat als bezahlt zu markieren
             </p>
