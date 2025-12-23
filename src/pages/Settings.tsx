@@ -55,7 +55,9 @@ const Settings: React.FC = () => {
     amount: '',
     incomeType: 'recurring' as 'recurring' | 'specific',
     months: [] as number[],
-    specificMonths: [] as number[]
+    specificMonths: [] as number[],
+    specificYear: new Date().getFullYear(),
+    specificMonth: new Date().getMonth()
   });
   const [editingFixedCost, setEditingFixedCost] = useState<FixedCost | null>(null);
   const [editFixedCostForm, setEditFixedCostForm] = useState({
@@ -63,7 +65,9 @@ const Settings: React.FC = () => {
     amount: '',
     costType: 'recurring' as 'recurring' | 'specific',
     months: [] as number[],
-    specificMonths: [] as number[]
+    specificMonths: [] as number[],
+    specificYear: new Date().getFullYear(),
+    specificMonth: new Date().getMonth()
   });
 
   const monthNames = [
@@ -98,8 +102,11 @@ const Settings: React.FC = () => {
         userId: user.uid
       };
 
-      // Nur months hinzufügen, wenn welche ausgewählt wurden
-      if (newFixedCost.months.length > 0) {
+      // Spezifische Monate (Jahr-Monat-Kombinationen) haben Vorrang
+      if (newFixedCost.specificMonths.length > 0) {
+        fixedCostData.specificMonths = newFixedCost.specificMonths;
+      } else if (newFixedCost.months.length > 0) {
+        // Nur months hinzufügen, wenn welche ausgewählt wurden und keine spezifischen Monate
         fixedCostData.months = newFixedCost.months;
       }
 
@@ -136,8 +143,11 @@ const Settings: React.FC = () => {
         userId: user.uid
       };
 
-      // Nur months hinzufügen, wenn welche ausgewählt wurden
-      if (newIncome.months.length > 0) {
+      // Spezifische Monate (Jahr-Monat-Kombinationen) haben Vorrang
+      if (newIncome.specificMonths.length > 0) {
+        incomeData.specificMonths = newIncome.specificMonths;
+      } else if (newIncome.months.length > 0) {
+        // Nur months hinzufügen, wenn welche ausgewählt wurden und keine spezifischen Monate
         incomeData.months = newIncome.months;
       }
 
@@ -228,6 +238,74 @@ const Settings: React.FC = () => {
     });
   };
 
+  const addSpecificCostMonth = () => {
+    const yearMonth = newFixedCost.specificYear * 100 + (newFixedCost.specificMonth + 1);
+    if (!newFixedCost.specificMonths.includes(yearMonth)) {
+      setNewFixedCost((prev) => ({
+        ...prev,
+        specificMonths: [...prev.specificMonths, yearMonth].sort((a, b) => a - b)
+      }));
+    }
+  };
+
+  const removeSpecificCostMonth = (yearMonth: number) => {
+    setNewFixedCost((prev) => ({
+      ...prev,
+      specificMonths: prev.specificMonths.filter((m) => m !== yearMonth)
+    }));
+  };
+
+  const addSpecificIncomeMonth = () => {
+    const yearMonth = newIncome.specificYear * 100 + (newIncome.specificMonth + 1);
+    if (!newIncome.specificMonths.includes(yearMonth)) {
+      setNewIncome((prev) => ({
+        ...prev,
+        specificMonths: [...prev.specificMonths, yearMonth].sort((a, b) => a - b)
+      }));
+    }
+  };
+
+  const removeSpecificIncomeMonth = (yearMonth: number) => {
+    setNewIncome((prev) => ({
+      ...prev,
+      specificMonths: prev.specificMonths.filter((m) => m !== yearMonth)
+    }));
+  };
+
+  const addEditSpecificIncomeMonth = () => {
+    const yearMonth = editIncomeForm.specificYear * 100 + (editIncomeForm.specificMonth + 1);
+    if (!editIncomeForm.specificMonths.includes(yearMonth)) {
+      setEditIncomeForm((prev) => ({
+        ...prev,
+        specificMonths: [...prev.specificMonths, yearMonth].sort((a, b) => a - b)
+      }));
+    }
+  };
+
+  const addEditSpecificCostMonth = () => {
+    const yearMonth = editFixedCostForm.specificYear * 100 + (editFixedCostForm.specificMonth + 1);
+    if (!editFixedCostForm.specificMonths.includes(yearMonth)) {
+      setEditFixedCostForm((prev) => ({
+        ...prev,
+        specificMonths: [...prev.specificMonths, yearMonth].sort((a, b) => a - b)
+      }));
+    }
+  };
+
+  const removeEditSpecificCostMonth = (yearMonth: number) => {
+    setEditFixedCostForm((prev) => ({
+      ...prev,
+      specificMonths: prev.specificMonths.filter((m) => m !== yearMonth)
+    }));
+  };
+
+  const removeEditSpecificIncomeMonth = (yearMonth: number) => {
+    setEditIncomeForm((prev) => ({
+      ...prev,
+      specificMonths: prev.specificMonths.filter((m) => m !== yearMonth)
+    }));
+  };
+
   const handleEditIncome = (income: Income) => {
     setEditingIncome(income);
     setEditIncomeForm({
@@ -235,7 +313,9 @@ const Settings: React.FC = () => {
       amount: income.amount.toString(),
       incomeType: 'recurring', // Legacy field
       months: income.months || [],
-      specificMonths: []
+      specificMonths: income.specificMonths || [],
+      specificYear: new Date().getFullYear(),
+      specificMonth: new Date().getMonth()
     });
   };
 
@@ -248,11 +328,16 @@ const Settings: React.FC = () => {
         amount: parseFloat(editIncomeForm.amount)
       };
 
-      // Nur months hinzufügen, wenn welche ausgewählt wurden
-      if (editIncomeForm.months.length > 0) {
+      // Spezifische Monate haben Vorrang
+      if (editIncomeForm.specificMonths.length > 0) {
+        updateData.specificMonths = editIncomeForm.specificMonths;
+        updateData.months = []; // Entferne months wenn spezifisch
+      } else if (editIncomeForm.months.length > 0) {
         updateData.months = editIncomeForm.months;
+        updateData.specificMonths = []; // Entferne specificMonths wenn wiederkehrend
       } else {
         updateData.months = [];
+        updateData.specificMonths = [];
       }
 
       await updateIncome(editingIncome.id, updateData);
@@ -272,7 +357,9 @@ const Settings: React.FC = () => {
       amount: cost.amount.toString(),
       costType: 'recurring', // Legacy field
       months: cost.months || [],
-      specificMonths: []
+      specificMonths: cost.specificMonths || [],
+      specificYear: new Date().getFullYear(),
+      specificMonth: new Date().getMonth()
     });
   };
 
@@ -285,11 +372,16 @@ const Settings: React.FC = () => {
         amount: parseFloat(editFixedCostForm.amount)
       };
 
-      // Nur months hinzufügen, wenn welche ausgewählt wurden
-      if (editFixedCostForm.months.length > 0) {
+      // Spezifische Monate haben Vorrang
+      if (editFixedCostForm.specificMonths.length > 0) {
+        updateData.specificMonths = editFixedCostForm.specificMonths;
+        updateData.months = []; // Entferne months wenn spezifisch
+      } else if (editFixedCostForm.months.length > 0) {
         updateData.months = editFixedCostForm.months;
+        updateData.specificMonths = []; // Entferne specificMonths wenn wiederkehrend
       } else {
         updateData.months = [];
+        updateData.specificMonths = [];
       }
 
       await updateFixedCost(editingFixedCost.id, updateData);
@@ -422,10 +514,10 @@ const Settings: React.FC = () => {
                 />
               </div>
 
-              {/* Monate */}
+              {/* Wiederkehrende Monate */}
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Gilt für Monate (leer = alle Monate)
+                  Wiederkehrende Monate (leer = alle Monate, jedes Jahr)
                 </label>
                 <div className="grid grid-cols-6 gap-2">
                   {monthNames.map((month, index) => (
@@ -438,11 +530,88 @@ const Settings: React.FC = () => {
                           ? 'bg-green-600 text-white'
                           : 'bg-white/10 text-white/60 hover:bg-white/20'
                       }`}
+                      disabled={newIncome.specificMonths.length > 0}
                     >
                       {month}
                     </button>
                   ))}
                 </div>
+                {newIncome.specificMonths.length > 0 && (
+                  <p className="text-xs text-yellow-400 mt-2">⚠️ Deaktiviert, da spezifische Monate ausgewählt sind</p>
+                )}
+              </div>
+
+              {/* Spezifische Jahr-Monat-Auswahl */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  ODER: Spezifische Monate (z.B. nur Januar 2026)
+                </label>
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  <div>
+                    <select
+                      value={newIncome.specificYear}
+                      onChange={(e) => setNewIncome({ ...newIncome, specificYear: parseInt(e.target.value) })}
+                      className="select w-full"
+                    >
+                      {Array.from({ length: 5 }, (_, i) => {
+                        const year = new Date().getFullYear() + i;
+                        return (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                  <div>
+                    <select
+                      value={newIncome.specificMonth}
+                      onChange={(e) => setNewIncome({ ...newIncome, specificMonth: parseInt(e.target.value) })}
+                      className="select w-full"
+                    >
+                      {monthNames.map((month, index) => (
+                        <option key={index} value={index}>
+                          {month}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={addSpecificIncomeMonth}
+                      className="btn-primary w-full"
+                    >
+                      + Hinzufügen
+                    </button>
+                  </div>
+                </div>
+                {newIncome.specificMonths.length > 0 && (
+                  <div className="bg-white/5 rounded-lg p-3">
+                    <p className="text-xs text-white/60 mb-2">Ausgewählte spezifische Monate:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {newIncome.specificMonths.map((ym) => {
+                        const year = Math.floor(ym / 100);
+                        const month = ym % 100;
+                        return (
+                          <span
+                            key={ym}
+                            className="bg-green-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                          >
+                            {monthNames[month - 1]} {year}
+                            <button
+                              type="button"
+                              onClick={() => removeSpecificIncomeMonth(ym)}
+                              className="hover:text-red-300"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button type="submit" className="btn-primary w-full">
@@ -479,10 +648,10 @@ const Settings: React.FC = () => {
                         />
                       </div>
 
-                      {/* Monate */}
+                      {/* Wiederkehrende Monate */}
                       <div>
                         <label className="block text-sm font-medium mb-2">
-                          Gilt für Monate (leer = alle Monate)
+                          Wiederkehrende Monate (leer = alle Monate, jedes Jahr)
                         </label>
                         <div className="grid grid-cols-6 gap-2">
                           {monthNames.map((month, index) => (
@@ -495,11 +664,88 @@ const Settings: React.FC = () => {
                                   ? 'bg-green-600 text-white'
                                   : 'bg-white/10 text-white/60 hover:bg-white/20'
                               }`}
+                              disabled={editIncomeForm.specificMonths.length > 0}
                             >
                               {month}
                             </button>
                           ))}
                         </div>
+                        {editIncomeForm.specificMonths.length > 0 && (
+                          <p className="text-xs text-yellow-400 mt-2">⚠️ Deaktiviert, da spezifische Monate ausgewählt sind</p>
+                        )}
+                      </div>
+
+                      {/* Spezifische Jahr-Monat-Auswahl */}
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          ODER: Spezifische Monate (z.B. nur Januar 2026)
+                        </label>
+                        <div className="grid grid-cols-3 gap-3 mb-3">
+                          <div>
+                            <select
+                              value={editIncomeForm.specificYear}
+                              onChange={(e) => setEditIncomeForm({ ...editIncomeForm, specificYear: parseInt(e.target.value) })}
+                              className="select w-full"
+                            >
+                              {Array.from({ length: 5 }, (_, i) => {
+                                const year = new Date().getFullYear() + i;
+                                return (
+                                  <option key={year} value={year}>
+                                    {year}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </div>
+                          <div>
+                            <select
+                              value={editIncomeForm.specificMonth}
+                              onChange={(e) => setEditIncomeForm({ ...editIncomeForm, specificMonth: parseInt(e.target.value) })}
+                              className="select w-full"
+                            >
+                              {monthNames.map((month, index) => (
+                                <option key={index} value={index}>
+                                  {month}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <button
+                              type="button"
+                              onClick={addEditSpecificIncomeMonth}
+                              className="btn-primary w-full"
+                            >
+                              + Hinzufügen
+                            </button>
+                          </div>
+                        </div>
+                        {editIncomeForm.specificMonths.length > 0 && (
+                          <div className="bg-white/5 rounded-lg p-3">
+                            <p className="text-xs text-white/60 mb-2">Ausgewählte spezifische Monate:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {editIncomeForm.specificMonths.map((ym) => {
+                                const year = Math.floor(ym / 100);
+                                const month = ym % 100;
+                                return (
+                                  <span
+                                    key={ym}
+                                    className="bg-green-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                                  >
+                                    {monthNames[month - 1]} {year}
+                                    <button
+                                      type="button"
+                                      onClick={() => removeEditSpecificIncomeMonth(ym)}
+                                      className="hover:text-red-300"
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex gap-2">
@@ -522,12 +768,21 @@ const Settings: React.FC = () => {
                         <p className="text-2xl font-bold text-green-400">
                           {formatCurrency(income.amount)}
                         </p>
-                        {income.months && income.months.length > 0 && (
+                        {income.specificMonths && income.specificMonths.length > 0 && (
                           <p className="text-sm text-white/60 mt-1">
-                            Monate: {income.months.map((m) => monthNames[m - 1]).join(', ')}
+                            Spezifisch: {income.specificMonths.map((ym) => {
+                              const year = Math.floor(ym / 100);
+                              const month = ym % 100;
+                              return `${monthNames[month - 1]} ${year}`;
+                            }).join(', ')}
                           </p>
                         )}
-                        {(!income.months || income.months.length === 0) && !income.specificMonths && (
+                        {(!income.specificMonths || income.specificMonths.length === 0) && income.months && income.months.length > 0 && (
+                          <p className="text-sm text-white/60 mt-1">
+                            Wiederkehrend: {income.months.map((m) => monthNames[m - 1]).join(', ')}
+                          </p>
+                        )}
+                        {(!income.months || income.months.length === 0) && (!income.specificMonths || income.specificMonths.length === 0) && (
                           <p className="text-sm text-white/60 mt-1">
                             Alle Monate
                           </p>
@@ -631,9 +886,10 @@ const Settings: React.FC = () => {
                   required
                 />
               </div>
+              {/* Wiederkehrende Monate */}
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Gilt für Monate (leer = alle Monate)
+                  Wiederkehrende Monate (leer = alle Monate, jedes Jahr)
                 </label>
                 <div className="grid grid-cols-6 gap-2">
                   {monthNames.map((month, index) => (
@@ -646,11 +902,88 @@ const Settings: React.FC = () => {
                           ? 'bg-red-600 text-white'
                           : 'bg-white/10 text-white/60 hover:bg-white/20'
                       }`}
+                      disabled={newFixedCost.specificMonths.length > 0}
                     >
                       {month}
                     </button>
                   ))}
                 </div>
+                {newFixedCost.specificMonths.length > 0 && (
+                  <p className="text-xs text-yellow-400 mt-2">⚠️ Deaktiviert, da spezifische Monate ausgewählt sind</p>
+                )}
+              </div>
+
+              {/* Spezifische Jahr-Monat-Auswahl */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  ODER: Spezifische Monate (z.B. nur Januar 2026)
+                </label>
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  <div>
+                    <select
+                      value={newFixedCost.specificYear}
+                      onChange={(e) => setNewFixedCost({ ...newFixedCost, specificYear: parseInt(e.target.value) })}
+                      className="select w-full"
+                    >
+                      {Array.from({ length: 5 }, (_, i) => {
+                        const year = new Date().getFullYear() + i;
+                        return (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                  <div>
+                    <select
+                      value={newFixedCost.specificMonth}
+                      onChange={(e) => setNewFixedCost({ ...newFixedCost, specificMonth: parseInt(e.target.value) })}
+                      className="select w-full"
+                    >
+                      {monthNames.map((month, index) => (
+                        <option key={index} value={index}>
+                          {month}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={addSpecificCostMonth}
+                      className="btn-primary w-full"
+                    >
+                      + Hinzufügen
+                    </button>
+                  </div>
+                </div>
+                {newFixedCost.specificMonths.length > 0 && (
+                  <div className="bg-white/5 rounded-lg p-3">
+                    <p className="text-xs text-white/60 mb-2">Ausgewählte spezifische Monate:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {newFixedCost.specificMonths.map((ym) => {
+                        const year = Math.floor(ym / 100);
+                        const month = ym % 100;
+                        return (
+                          <span
+                            key={ym}
+                            className="bg-red-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                          >
+                            {monthNames[month - 1]} {year}
+                            <button
+                              type="button"
+                              onClick={() => removeSpecificCostMonth(ym)}
+                              className="hover:text-red-300"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
               <button type="submit" className="btn-primary w-full">
                 Fixkosten hinzufügen
@@ -694,9 +1027,10 @@ const Settings: React.FC = () => {
                             className="input w-full"
                           />
                         </div>
+                        {/* Wiederkehrende Monate */}
                         <div>
                           <label className="block text-sm font-medium mb-2">
-                            Gilt für Monate (leer = alle Monate)
+                            Wiederkehrende Monate (leer = alle Monate, jedes Jahr)
                           </label>
                           <div className="grid grid-cols-6 gap-2">
                             {monthNames.map((month, index) => (
@@ -709,11 +1043,88 @@ const Settings: React.FC = () => {
                                     ? 'bg-red-600 text-white'
                                     : 'bg-white/10 text-white/60 hover:bg-white/20'
                                 }`}
+                                disabled={editFixedCostForm.specificMonths.length > 0}
                               >
                                 {month}
                               </button>
                             ))}
                           </div>
+                          {editFixedCostForm.specificMonths.length > 0 && (
+                            <p className="text-xs text-yellow-400 mt-2">⚠️ Deaktiviert, da spezifische Monate ausgewählt sind</p>
+                          )}
+                        </div>
+
+                        {/* Spezifische Jahr-Monat-Auswahl */}
+                        <div>
+                          <label className="block text-sm font-medium mb-2">
+                            ODER: Spezifische Monate (z.B. nur Januar 2026)
+                          </label>
+                          <div className="grid grid-cols-3 gap-3 mb-3">
+                            <div>
+                              <select
+                                value={editFixedCostForm.specificYear}
+                                onChange={(e) => setEditFixedCostForm({ ...editFixedCostForm, specificYear: parseInt(e.target.value) })}
+                                className="select w-full"
+                              >
+                                {Array.from({ length: 5 }, (_, i) => {
+                                  const year = new Date().getFullYear() + i;
+                                  return (
+                                    <option key={year} value={year}>
+                                      {year}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+                            <div>
+                              <select
+                                value={editFixedCostForm.specificMonth}
+                                onChange={(e) => setEditFixedCostForm({ ...editFixedCostForm, specificMonth: parseInt(e.target.value) })}
+                                className="select w-full"
+                              >
+                                {monthNames.map((month, index) => (
+                                  <option key={index} value={index}>
+                                    {month}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <button
+                                type="button"
+                                onClick={addEditSpecificCostMonth}
+                                className="btn-primary w-full"
+                              >
+                                + Hinzufügen
+                              </button>
+                            </div>
+                          </div>
+                          {editFixedCostForm.specificMonths.length > 0 && (
+                            <div className="bg-white/5 rounded-lg p-3">
+                              <p className="text-xs text-white/60 mb-2">Ausgewählte spezifische Monate:</p>
+                              <div className="flex flex-wrap gap-2">
+                                {editFixedCostForm.specificMonths.map((ym) => {
+                                  const year = Math.floor(ym / 100);
+                                  const month = ym % 100;
+                                  return (
+                                    <span
+                                      key={ym}
+                                      className="bg-red-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                                    >
+                                      {monthNames[month - 1]} {year}
+                                      <button
+                                        type="button"
+                                        onClick={() => removeEditSpecificCostMonth(ym)}
+                                        className="hover:text-red-300"
+                                      >
+                                        ×
+                                      </button>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                         <div className="flex gap-2">
                           <button onClick={handleSaveFixedCost} className="btn-primary flex-1">
@@ -749,12 +1160,21 @@ const Settings: React.FC = () => {
                           <p className={`text-2xl font-bold ${isPaid ? 'text-green-400' : 'text-red-400'}`}>
                             {formatCurrency(cost.amount)}
                           </p>
-                          {cost.months && cost.months.length > 0 && (
+                          {cost.specificMonths && cost.specificMonths.length > 0 && (
                             <p className="text-sm text-white/60 mt-1">
-                              Monate: {cost.months.map((m) => monthNames[m - 1]).join(', ')}
+                              Spezifisch: {cost.specificMonths.map((ym) => {
+                                const year = Math.floor(ym / 100);
+                                const month = ym % 100;
+                                return `${monthNames[month - 1]} ${year}`;
+                              }).join(', ')}
                             </p>
                           )}
-                          {(!cost.months || cost.months.length === 0) && !cost.yearMonth && (
+                          {(!cost.specificMonths || cost.specificMonths.length === 0) && cost.months && cost.months.length > 0 && (
+                            <p className="text-sm text-white/60 mt-1">
+                              Wiederkehrend: {cost.months.map((m) => monthNames[m - 1]).join(', ')}
+                            </p>
+                          )}
+                          {(!cost.months || cost.months.length === 0) && (!cost.specificMonths || cost.specificMonths.length === 0) && !cost.yearMonth && (
                             <p className="text-sm text-white/60 mt-1">
                               Alle Monate
                             </p>
