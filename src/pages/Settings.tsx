@@ -16,6 +16,7 @@ import {
   deleteExpensesForMonth
 } from '../services/firestore';
 import { formatCurrency, getMonthName } from '../utils/dateUtils';
+import { migrateLegacyData } from '../utils/migration';
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
@@ -40,6 +41,7 @@ const Settings: React.FC = () => {
   const [deleteMonth, setDeleteMonth] = useState(new Date().getMonth());
   const [deleteYear, setDeleteYear] = useState(new Date().getFullYear());
   const [deleting, setDeleting] = useState(false);
+  const [migrating, setMigrating] = useState(false);
 
   const monthNames = [
     'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -118,6 +120,31 @@ const Settings: React.FC = () => {
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
       setError(error.message || 'Fehler beim Kopieren.');
+    }
+  };
+
+  // Handler: Alte Daten migrieren
+  const handleMigration = async () => {
+    if (!user) return;
+
+    const confirmText = 'Möchten Sie alte Einträge ins neue Format konvertieren?\n\n' +
+      'Wiederkehrende Einträge werden für die nächsten 12 Monate erstellt.\n' +
+      'Dieser Vorgang kann nicht rückgängig gemacht werden!';
+
+    if (!confirm(confirmText)) return;
+
+    setMigrating(true);
+    setError('');
+
+    try {
+      const result = await migrateLegacyData(user.uid);
+      setSuccess(`Migration erfolgreich! ${result.migratedCosts} Fixkosten und ${result.migratedIncomes} Einnahmen konvertiert.`);
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (error: any) {
+      console.error('Migration error:', error);
+      setError(error.message || 'Fehler bei der Migration.');
+    } finally {
+      setMigrating(false);
     }
   };
 
@@ -278,12 +305,24 @@ const Settings: React.FC = () => {
             </select>
           </div>
         </div>
-        <button
-          onClick={handleCopyFromPreviousMonth}
-          className="btn-primary w-full"
-        >
-          📋 Vormonat kopieren ({getMonthName(selectedMonth === 0 ? 11 : selectedMonth - 1)} {selectedMonth === 0 ? selectedYear - 1 : selectedYear})
-        </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <button
+            onClick={handleCopyFromPreviousMonth}
+            className="btn-primary w-full"
+          >
+            📋 Vormonat kopieren
+          </button>
+          <button
+            onClick={handleMigration}
+            disabled={migrating}
+            className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition-colors"
+          >
+            {migrating ? '⏳ Migriere...' : '🔄 Alte Daten konvertieren'}
+          </button>
+        </div>
+        <p className="text-xs text-white/60 mt-2">
+          Verwenden Sie "Alte Daten konvertieren" einmalig, um bestehende Einträge ins neue Format zu übertragen.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
