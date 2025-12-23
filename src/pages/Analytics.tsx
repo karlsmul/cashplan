@@ -9,7 +9,8 @@ const Analytics: React.FC = () => {
   const currentYear = new Date().getFullYear();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [sortBy, setSortBy] = useState<'date' | 'amount-desc' | 'amount-asc'>('date');
+  const [alltagSortBy, setAlltagSortBy] = useState<'date' | 'amount-desc' | 'amount-asc'>('date');
+  const [sonderpostenSortBy, setSonderpostenSortBy] = useState<'date' | 'amount-desc' | 'amount-asc'>('date');
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
@@ -43,7 +44,7 @@ const Analytics: React.FC = () => {
     .filter((cost) => cost.yearMonth === selectedYearMonth)
     .reduce((sum, cost) => sum + cost.amount, 0);
 
-  const sortExpenses = (expenseList: Expense[]) => {
+  const sortExpenses = (expenseList: Expense[], sortBy: 'date' | 'amount-desc' | 'amount-asc') => {
     const sorted = [...expenseList];
     switch (sortBy) {
       case 'amount-desc':
@@ -57,8 +58,8 @@ const Analytics: React.FC = () => {
   };
 
   const expensesByCategory: Record<ExpenseCategory, Expense[]> = {
-    Alltag: sortExpenses(expenses.filter((e) => e.category === 'Alltag')),
-    Sonderposten: sortExpenses(expenses.filter((e) => e.category === 'Sonderposten'))
+    Alltag: sortExpenses(expenses.filter((e) => e.category === 'Alltag'), alltagSortBy),
+    Sonderposten: sortExpenses(expenses.filter((e) => e.category === 'Sonderposten'), sonderpostenSortBy)
   };
 
   const totalAlltagExpenses = expensesByCategory.Alltag.reduce((sum, e) => sum + e.amount, 0);
@@ -136,7 +137,7 @@ const Analytics: React.FC = () => {
 
       {/* Month Selector */}
       <div className="card mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2">Monat</label>
             <select
@@ -163,18 +164,6 @@ const Analytics: React.FC = () => {
                   {year}
                 </option>
               ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">Sortierung</label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'date' | 'amount-desc' | 'amount-asc')}
-              className="select w-full"
-            >
-              <option value="date">Nach Datum</option>
-              <option value="amount-desc">Nach Betrag (absteigend)</option>
-              <option value="amount-asc">Nach Betrag (aufsteigend)</option>
             </select>
           </div>
         </div>
@@ -221,7 +210,18 @@ const Analytics: React.FC = () => {
       {/* Category Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         <div className="card">
-          <h3 className="text-xl font-bold mb-4 text-blue-300">Alltag ({expensesByCategory.Alltag.length})</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-blue-300">Alltag ({expensesByCategory.Alltag.length})</h3>
+            <select
+              value={alltagSortBy}
+              onChange={(e) => setAlltagSortBy(e.target.value as 'date' | 'amount-desc' | 'amount-asc')}
+              className="select text-sm"
+            >
+              <option value="date">Nach Datum</option>
+              <option value="amount-desc">Betrag ↓</option>
+              <option value="amount-asc">Betrag ↑</option>
+            </select>
+          </div>
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {expensesByCategory.Alltag.map((expense) => (
               <div
@@ -249,9 +249,20 @@ const Analytics: React.FC = () => {
         </div>
 
         <div className="card">
-          <h3 className="text-xl font-bold mb-4 text-orange-300">
-            Sonderposten ({expensesByCategory.Sonderposten.length})
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-orange-300">
+              Sonderposten ({expensesByCategory.Sonderposten.length})
+            </h3>
+            <select
+              value={sonderpostenSortBy}
+              onChange={(e) => setSonderpostenSortBy(e.target.value as 'date' | 'amount-desc' | 'amount-asc')}
+              className="select text-sm"
+            >
+              <option value="date">Nach Datum</option>
+              <option value="amount-desc">Betrag ↓</option>
+              <option value="amount-asc">Betrag ↑</option>
+            </select>
+          </div>
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {expensesByCategory.Sonderposten.map((expense) => (
               <div
