@@ -56,7 +56,17 @@ const Dashboard: React.FC = () => {
     .reduce((sum, income) => sum + income.amount, 0);
 
   const monthlyFixedCosts = fixedCosts
-    .filter((cost) => !cost.months || cost.months.includes(currentMonth + 1))
+    .filter((cost) => {
+      const currentYearMonth = currentYear * 100 + (currentMonth + 1); // YYYYMM
+
+      // Prüfe zuerst spezifische Monate
+      if (cost.specificMonths && cost.specificMonths.length > 0) {
+        return cost.specificMonths.includes(currentYearMonth);
+      }
+
+      // Sonst prüfe wiederkehrende Monate
+      return !cost.months || cost.months.includes(currentMonth + 1);
+    })
     .reduce((sum, cost) => sum + cost.amount, 0);
 
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);

@@ -20,7 +20,15 @@ const Settings: React.FC = () => {
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
 
-  const [newFixedCost, setNewFixedCost] = useState({ name: '', amount: '', months: [] as number[] });
+  const [newFixedCost, setNewFixedCost] = useState({
+    name: '',
+    amount: '',
+    costType: 'recurring' as 'recurring' | 'specific',
+    months: [] as number[],
+    specificMonths: [] as number[],
+    specificYear: new Date().getFullYear() + 1,
+    specificMonth: 0
+  });
   const [newIncome, setNewIncome] = useState({
     name: '',
     amount: '',
@@ -45,7 +53,13 @@ const Settings: React.FC = () => {
     specificMonths: [] as number[]
   });
   const [editingFixedCost, setEditingFixedCost] = useState<FixedCost | null>(null);
-  const [editFixedCostForm, setEditFixedCostForm] = useState({ name: '', amount: '', months: [] as number[] });
+  const [editFixedCostForm, setEditFixedCostForm] = useState({
+    name: '',
+    amount: '',
+    costType: 'recurring' as 'recurring' | 'specific',
+    months: [] as number[],
+    specificMonths: [] as number[]
+  });
 
   const monthNames = [
     'Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun',
@@ -78,14 +92,30 @@ const Settings: React.FC = () => {
         userId: user.uid
       };
 
-      // Nur months hinzufügen, wenn welche ausgewählt wurden
-      if (newFixedCost.months.length > 0) {
-        fixedCostData.months = newFixedCost.months;
+      // Je nach Typ: Wiederkehrend oder Spezifisch
+      if (newFixedCost.costType === 'recurring') {
+        // Nur months hinzufügen, wenn welche ausgewählt wurden
+        if (newFixedCost.months.length > 0) {
+          fixedCostData.months = newFixedCost.months;
+        }
+      } else {
+        // Spezifische Monate (YYYYMM)
+        if (newFixedCost.specificMonths.length > 0) {
+          fixedCostData.specificMonths = newFixedCost.specificMonths;
+        }
       }
 
       await addFixedCost(fixedCostData);
 
-      setNewFixedCost({ name: '', amount: '', months: [] });
+      setNewFixedCost({
+        name: '',
+        amount: '',
+        costType: 'recurring',
+        months: [],
+        specificMonths: [],
+        specificYear: new Date().getFullYear() + 1,
+        specificMonth: 0
+      });
       setSuccess('Fixkosten erfolgreich hinzugefügt!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
@@ -181,6 +211,23 @@ const Settings: React.FC = () => {
     });
   };
 
+  const addSpecificCostMonth = () => {
+    const yearMonth = newFixedCost.specificYear * 100 + (newFixedCost.specificMonth + 1); // YYYYMM
+    if (!newFixedCost.specificMonths.includes(yearMonth)) {
+      setNewFixedCost((prev) => ({
+        ...prev,
+        specificMonths: [...prev.specificMonths, yearMonth].sort((a, b) => a - b)
+      }));
+    }
+  };
+
+  const removeSpecificCostMonth = (yearMonth: number) => {
+    setNewFixedCost((prev) => ({
+      ...prev,
+      specificMonths: prev.specificMonths.filter((m) => m !== yearMonth)
+    }));
+  };
+
   const toggleIncomeMonth = (month: number) => {
     setNewIncome((prev) => {
       const months = prev.months.includes(month)
@@ -206,6 +253,13 @@ const Settings: React.FC = () => {
         : [...prev.months, month].sort((a, b) => a - b);
       return { ...prev, months };
     });
+  };
+
+  const removeEditSpecificCostMonth = (yearMonth: number) => {
+    setEditFixedCostForm((prev) => ({
+      ...prev,
+      specificMonths: prev.specificMonths.filter((m) => m !== yearMonth)
+    }));
   };
 
   const addSpecificMonth = () => {
@@ -284,10 +338,13 @@ const Settings: React.FC = () => {
 
   const handleEditFixedCost = (cost: FixedCost) => {
     setEditingFixedCost(cost);
+    const hasSpecificMonths = cost.specificMonths && cost.specificMonths.length > 0;
     setEditFixedCostForm({
       name: cost.name,
       amount: cost.amount.toString(),
-      months: cost.months || []
+      costType: hasSpecificMonths ? 'specific' : 'recurring',
+      months: cost.months || [],
+      specificMonths: cost.specificMonths || []
     });
   };
 
@@ -300,9 +357,22 @@ const Settings: React.FC = () => {
         amount: parseFloat(editFixedCostForm.amount)
       };
 
-      if (editFixedCostForm.months.length > 0) {
-        updateData.months = editFixedCostForm.months;
+      if (editFixedCostForm.costType === 'recurring') {
+        if (editFixedCostForm.months.length > 0) {
+          updateData.months = editFixedCostForm.months;
+        } else {
+          updateData.months = [];
+        }
+        // Spezifische Monate löschen
+        updateData.specificMonths = [];
       } else {
+        // Spezifische Monate
+        if (editFixedCostForm.specificMonths.length > 0) {
+          updateData.specificMonths = editFixedCostForm.specificMonths;
+        } else {
+          updateData.specificMonths = [];
+        }
+        // Wiederkehrende Monate löschen
         updateData.months = [];
       }
 
@@ -768,27 +838,133 @@ const Settings: React.FC = () => {
                   required
                 />
               </div>
+              {/* Art der Fixkosten */}
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  Monate (leer lassen für alle Monate)
-                </label>
-                <div className="grid grid-cols-6 gap-2">
-                  {monthNames.map((month, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={() => toggleMonth(index + 1)}
-                      className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                        newFixedCost.months.includes(index + 1)
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-white/10 text-white/60 hover:bg-white/20'
-                      }`}
-                    >
-                      {month}
-                    </button>
-                  ))}
+                <label className="block text-sm font-medium mb-2">Art der Fixkosten</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setNewFixedCost({ ...newFixedCost, costType: 'recurring' })}
+                    className={`py-3 px-4 rounded-lg font-medium transition-all ${
+                      newFixedCost.costType === 'recurring'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-white/10 text-white/60 hover:bg-white/20'
+                    }`}
+                  >
+                    🔄 Wiederkehrend
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewFixedCost({ ...newFixedCost, costType: 'specific' })}
+                    className={`py-3 px-4 rounded-lg font-medium transition-all ${
+                      newFixedCost.costType === 'specific'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-white/10 text-white/60 hover:bg-white/20'
+                    }`}
+                  >
+                    📅 Einmalig
+                  </button>
                 </div>
               </div>
+
+              {/* Wiederkehrende Monate */}
+              {newFixedCost.costType === 'recurring' && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Monate (leer lassen für alle Monate)
+                  </label>
+                  <div className="grid grid-cols-6 gap-2">
+                    {monthNames.map((month, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => toggleMonth(index + 1)}
+                        className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                          newFixedCost.months.includes(index + 1)
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-white/10 text-white/60 hover:bg-white/20'
+                        }`}
+                      >
+                        {month}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Spezifische Jahr-Monat Auswahl */}
+              {newFixedCost.costType === 'specific' && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Spezifisches Jahr und Monat</label>
+                  <div className="grid grid-cols-3 gap-3 mb-3">
+                    <div className="col-span-1">
+                      <select
+                        value={newFixedCost.specificYear}
+                        onChange={(e) => setNewFixedCost({ ...newFixedCost, specificYear: parseInt(e.target.value) })}
+                        className="select w-full"
+                      >
+                        {Array.from({ length: 5 }, (_, i) => {
+                          const year = new Date().getFullYear() + i;
+                          return (
+                            <option key={year} value={year}>
+                              {year}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                    <div className="col-span-1">
+                      <select
+                        value={newFixedCost.specificMonth}
+                        onChange={(e) => setNewFixedCost({ ...newFixedCost, specificMonth: parseInt(e.target.value) })}
+                        className="select w-full"
+                      >
+                        {monthNames.map((month, index) => (
+                          <option key={index} value={index}>
+                            {month}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-span-1">
+                      <button
+                        type="button"
+                        onClick={addSpecificCostMonth}
+                        className="btn-primary w-full"
+                      >
+                        + Hinzufügen
+                      </button>
+                    </div>
+                  </div>
+                  {/* Ausgewählte spezifische Monate */}
+                  {newFixedCost.specificMonths.length > 0 && (
+                    <div className="bg-white/5 rounded-lg p-3">
+                      <p className="text-xs text-white/60 mb-2">Ausgewählte Monate:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {newFixedCost.specificMonths.map((ym) => {
+                          const year = Math.floor(ym / 100);
+                          const month = ym % 100;
+                          return (
+                            <span
+                              key={ym}
+                              className="bg-purple-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                            >
+                              {monthNames[month - 1]} {year}
+                              <button
+                                type="button"
+                                onClick={() => removeSpecificCostMonth(ym)}
+                                className="hover:text-red-300"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               <button type="submit" className="btn-primary w-full">
                 Fixkosten hinzufügen
               </button>
@@ -831,25 +1007,90 @@ const Settings: React.FC = () => {
                             className="input w-full"
                           />
                         </div>
+                        {/* Art der Fixkosten */}
                         <div>
-                          <label className="block text-sm font-medium mb-2">Monate</label>
-                          <div className="grid grid-cols-6 gap-2">
-                            {monthNames.map((month, index) => (
-                              <button
-                                key={index}
-                                type="button"
-                                onClick={() => toggleEditFixedCostMonth(index + 1)}
-                                className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                                  editFixedCostForm.months.includes(index + 1)
-                                    ? 'bg-purple-600 text-white'
-                                    : 'bg-white/10 text-white/60 hover:bg-white/20'
-                                }`}
-                              >
-                                {month}
-                              </button>
-                            ))}
+                          <label className="block text-sm font-medium mb-2">Art der Fixkosten</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setEditFixedCostForm({ ...editFixedCostForm, costType: 'recurring' })}
+                              className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                                editFixedCostForm.costType === 'recurring'
+                                  ? 'bg-purple-600 text-white'
+                                  : 'bg-white/10 text-white/60 hover:bg-white/20'
+                              }`}
+                            >
+                              🔄 Wiederkehrend
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditFixedCostForm({ ...editFixedCostForm, costType: 'specific' })}
+                              className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                                editFixedCostForm.costType === 'specific'
+                                  ? 'bg-purple-600 text-white'
+                                  : 'bg-white/10 text-white/60 hover:bg-white/20'
+                              }`}
+                            >
+                              📅 Einmalig
+                            </button>
                           </div>
                         </div>
+
+                        {/* Wiederkehrende Monate */}
+                        {editFixedCostForm.costType === 'recurring' && (
+                          <div>
+                            <label className="block text-sm font-medium mb-2">Monate</label>
+                            <div className="grid grid-cols-6 gap-2">
+                              {monthNames.map((month, index) => (
+                                <button
+                                  key={index}
+                                  type="button"
+                                  onClick={() => toggleEditFixedCostMonth(index + 1)}
+                                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                                    editFixedCostForm.months.includes(index + 1)
+                                      ? 'bg-purple-600 text-white'
+                                      : 'bg-white/10 text-white/60 hover:bg-white/20'
+                                  }`}
+                                >
+                                  {month}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Spezifische Monate */}
+                        {editFixedCostForm.costType === 'specific' && (
+                          <div>
+                            <label className="block text-sm font-medium mb-2">Spezifische Monate</label>
+                            {editFixedCostForm.specificMonths.length > 0 && (
+                              <div className="bg-white/5 rounded-lg p-3 mb-3">
+                                <div className="flex flex-wrap gap-2">
+                                  {editFixedCostForm.specificMonths.map((ym) => {
+                                    const year = Math.floor(ym / 100);
+                                    const month = ym % 100;
+                                    return (
+                                      <span
+                                        key={ym}
+                                        className="bg-purple-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                                      >
+                                        {monthNames[month - 1]} {year}
+                                        <button
+                                          type="button"
+                                          onClick={() => removeEditSpecificCostMonth(ym)}
+                                          className="hover:text-red-300"
+                                        >
+                                          ×
+                                        </button>
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                            <p className="text-xs text-white/60">Hinweis: Um neue Monate hinzuzufügen, schließen Sie zuerst die Bearbeitung ab.</p>
+                          </div>
+                        )}
                         <div className="flex gap-2">
                           <button onClick={handleSaveFixedCost} className="btn-primary flex-1">
                             ✓ Speichern
@@ -886,8 +1127,24 @@ const Settings: React.FC = () => {
                           </p>
                           {cost.months && cost.months.length > 0 && (
                             <p className="text-sm text-white/60 mt-1">
-                              Nur in: {cost.months.map((m) => monthNames[m - 1]).join(', ')}
+                              🔄 Wiederkehrend: {cost.months.map((m) => monthNames[m - 1]).join(', ')}
                             </p>
+                          )}
+                          {cost.specificMonths && cost.specificMonths.length > 0 && (
+                            <div className="text-sm text-white/60 mt-1">
+                              <p className="mb-1">📅 Einmalig:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {cost.specificMonths.map((ym) => {
+                                  const year = Math.floor(ym / 100);
+                                  const month = ym % 100;
+                                  return (
+                                    <span key={ym} className="bg-purple-600/30 px-2 py-0.5 rounded text-xs">
+                                      {monthNames[month - 1]} {year}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           )}
                         </div>
                         <div className="flex gap-2 pointer-events-auto">
