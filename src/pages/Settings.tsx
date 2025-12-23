@@ -8,8 +8,7 @@ import {
   deleteIncome,
   updateFixedCost,
   updateIncome,
-  subscribeToFixedCostsForMonth,
-  copyFixedCostsFromPreviousMonth,
+  subscribeToFixedCosts,
   subscribeToIncomes,
   deleteAllExpenses,
   deleteExpensesForMonth
@@ -75,19 +74,15 @@ const Settings: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
-    // Monatsspezifische Fixkosten laden
-    const unsubscribeFixedCosts = subscribeToFixedCostsForMonth(
-      user.uid,
-      selectedYearMonth,
-      setFixedCosts
-    );
+    // Alle Fixkosten laden, später nach Monat filtern
+    const unsubscribeFixedCosts = subscribeToFixedCosts(user.uid, setFixedCosts);
     const unsubscribeIncomes = subscribeToIncomes(user.uid, setIncomes);
 
     return () => {
       unsubscribeFixedCosts();
       unsubscribeIncomes();
     };
-  }, [user, selectedYearMonth]);
+  }, [user]);
 
   const handleAddFixedCost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,9 +95,13 @@ const Settings: React.FC = () => {
       const fixedCostData: any = {
         name: newFixedCost.name,
         amount: parseFloat(newFixedCost.amount),
-        yearMonth: selectedYearMonth, // Monatsspezifisch
         userId: user.uid
       };
+
+      // Nur months hinzufügen, wenn welche ausgewählt wurden
+      if (newFixedCost.months.length > 0) {
+        fixedCostData.months = newFixedCost.months;
+      }
 
       await addFixedCost(fixedCostData);
 
@@ -137,17 +136,9 @@ const Settings: React.FC = () => {
         userId: user.uid
       };
 
-      // Je nach Typ: Wiederkehrend oder Spezifisch
-      if (newIncome.incomeType === 'recurring') {
-        // Nur months hinzufügen, wenn welche ausgewählt wurden
-        if (newIncome.months.length > 0) {
-          incomeData.months = newIncome.months;
-        }
-      } else {
-        // Spezifische Monate (YYYYMM)
-        if (newIncome.specificMonths.length > 0) {
-          incomeData.specificMonths = newIncome.specificMonths;
-        }
+      // Nur months hinzufügen, wenn welche ausgewählt wurden
+      if (newIncome.months.length > 0) {
+        incomeData.months = newIncome.months;
       }
 
       await addIncome(incomeData);
@@ -201,6 +192,24 @@ const Settings: React.FC = () => {
     }
   };
 
+  const toggleFixedCostMonth = (month: number) => {
+    setNewFixedCost((prev) => {
+      const months = prev.months.includes(month)
+        ? prev.months.filter((m) => m !== month)
+        : [...prev.months, month].sort((a, b) => a - b);
+      return { ...prev, months };
+    });
+  };
+
+  const toggleEditFixedCostMonth = (month: number) => {
+    setEditFixedCostForm((prev) => {
+      const months = prev.months.includes(month)
+        ? prev.months.filter((m) => m !== month)
+        : [...prev.months, month].sort((a, b) => a - b);
+      return { ...prev, months };
+    });
+  };
+
   const toggleIncomeMonth = (month: number) => {
     setNewIncome((prev) => {
       const months = prev.months.includes(month)
@@ -219,39 +228,14 @@ const Settings: React.FC = () => {
     });
   };
 
-  const addSpecificMonth = () => {
-    const yearMonth = newIncome.specificYear * 100 + (newIncome.specificMonth + 1); // YYYYMM
-    if (!newIncome.specificMonths.includes(yearMonth)) {
-      setNewIncome((prev) => ({
-        ...prev,
-        specificMonths: [...prev.specificMonths, yearMonth].sort((a, b) => a - b)
-      }));
-    }
-  };
-
-  const removeSpecificMonth = (yearMonth: number) => {
-    setNewIncome((prev) => ({
-      ...prev,
-      specificMonths: prev.specificMonths.filter((m) => m !== yearMonth)
-    }));
-  };
-
-  const removeEditSpecificMonth = (yearMonth: number) => {
-    setEditIncomeForm((prev) => ({
-      ...prev,
-      specificMonths: prev.specificMonths.filter((m) => m !== yearMonth)
-    }));
-  };
-
   const handleEditIncome = (income: Income) => {
     setEditingIncome(income);
-    const hasSpecificMonths = income.specificMonths && income.specificMonths.length > 0;
     setEditIncomeForm({
       name: income.name,
       amount: income.amount.toString(),
-      incomeType: hasSpecificMonths ? 'specific' : 'recurring',
+      incomeType: 'recurring', // Legacy field
       months: income.months || [],
-      specificMonths: income.specificMonths || []
+      specificMonths: []
     });
   };
 
@@ -264,22 +248,10 @@ const Settings: React.FC = () => {
         amount: parseFloat(editIncomeForm.amount)
       };
 
-      if (editIncomeForm.incomeType === 'recurring') {
-        if (editIncomeForm.months.length > 0) {
-          updateData.months = editIncomeForm.months;
-        } else {
-          updateData.months = [];
-        }
-        // Spezifische Monate löschen
-        updateData.specificMonths = [];
+      // Nur months hinzufügen, wenn welche ausgewählt wurden
+      if (editIncomeForm.months.length > 0) {
+        updateData.months = editIncomeForm.months;
       } else {
-        // Spezifische Monate
-        if (editIncomeForm.specificMonths.length > 0) {
-          updateData.specificMonths = editIncomeForm.specificMonths;
-        } else {
-          updateData.specificMonths = [];
-        }
-        // Wiederkehrende Monate löschen
         updateData.months = [];
       }
 
@@ -299,7 +271,7 @@ const Settings: React.FC = () => {
       name: cost.name,
       amount: cost.amount.toString(),
       costType: 'recurring', // Legacy field
-      months: [],
+      months: cost.months || [],
       specificMonths: []
     });
   };
@@ -312,6 +284,13 @@ const Settings: React.FC = () => {
         name: editFixedCostForm.name,
         amount: parseFloat(editFixedCostForm.amount)
       };
+
+      // Nur months hinzufügen, wenn welche ausgewählt wurden
+      if (editFixedCostForm.months.length > 0) {
+        updateData.months = editFixedCostForm.months;
+      } else {
+        updateData.months = [];
+      }
 
       await updateFixedCost(editingFixedCost.id, updateData);
       setEditingFixedCost(null);
@@ -381,37 +360,19 @@ const Settings: React.FC = () => {
     }
   };
 
-  const handleCopyFromPreviousMonth = async () => {
-    if (!user) return;
-
-    // Vormonat berechnen
-    let prevMonth = selectedMonth - 1;
-    let prevYear = selectedYear;
-    if (prevMonth < 0) {
-      prevMonth = 11;
-      prevYear--;
+  // Filtere Fixkosten nach ausgewähltem Monat
+  const filteredFixedCosts = fixedCosts.filter((cost) => {
+    // Wenn yearMonth gesetzt (neues System), prüfe ob es zum ausgewählten Monat passt
+    if (cost.yearMonth) {
+      return cost.yearMonth === selectedYearMonth;
     }
-    const prevYearMonth = prevYear * 100 + (prevMonth + 1);
-
-    setError('');
-    setSuccess('');
-
-    try {
-      const count = await copyFixedCostsFromPreviousMonth(user.uid, prevYearMonth, selectedYearMonth);
-      if (count > 0) {
-        setSuccess(`${count} Fixkosten vom ${getMonthName(prevMonth)} ${prevYear} übernommen!`);
-      } else {
-        setError(`Keine Fixkosten im ${getMonthName(prevMonth)} ${prevYear} gefunden.`);
-      }
-      setTimeout(() => {
-        setSuccess('');
-        setError('');
-      }, 5000);
-    } catch (error: any) {
-      console.error('Fehler beim Kopieren der Fixkosten:', error);
-      setError(error.message || 'Fehler beim Kopieren der Fixkosten.');
+    // Ansonsten (altes System): Prüfe months Array
+    if (cost.months && cost.months.length > 0) {
+      return cost.months.includes(selectedMonth + 1);
     }
-  };
+    // Keine Monate = gilt für alle Monate
+    return true;
+  });
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -461,133 +422,28 @@ const Settings: React.FC = () => {
                 />
               </div>
 
-              {/* Art der Einnahme */}
+              {/* Monate */}
               <div>
-                <label className="block text-sm font-medium mb-2">Art der Einnahme</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setNewIncome({ ...newIncome, incomeType: 'recurring' })}
-                    className={`py-3 px-4 rounded-lg font-medium transition-all ${
-                      newIncome.incomeType === 'recurring'
-                        ? 'bg-green-600 text-white'
-                        : 'bg-white/10 text-white/60 hover:bg-white/20'
-                    }`}
-                  >
-                    🔄 Wiederkehrend
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewIncome({ ...newIncome, incomeType: 'specific' })}
-                    className={`py-3 px-4 rounded-lg font-medium transition-all ${
-                      newIncome.incomeType === 'specific'
-                        ? 'bg-green-600 text-white'
-                        : 'bg-white/10 text-white/60 hover:bg-white/20'
-                    }`}
-                  >
-                    📅 Einmalig
-                  </button>
+                <label className="block text-sm font-medium mb-2">
+                  Gilt für Monate (leer = alle Monate)
+                </label>
+                <div className="grid grid-cols-6 gap-2">
+                  {monthNames.map((month, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => toggleIncomeMonth(index + 1)}
+                      className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                        newIncome.months.includes(index + 1)
+                          ? 'bg-green-600 text-white'
+                          : 'bg-white/10 text-white/60 hover:bg-white/20'
+                      }`}
+                    >
+                      {month}
+                    </button>
+                  ))}
                 </div>
               </div>
-
-              {/* Wiederkehrende Monate */}
-              {newIncome.incomeType === 'recurring' && (
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Monate (leer lassen für alle Monate)
-                  </label>
-                  <div className="grid grid-cols-6 gap-2">
-                    {monthNames.map((month, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        onClick={() => toggleIncomeMonth(index + 1)}
-                        className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                          newIncome.months.includes(index + 1)
-                            ? 'bg-green-600 text-white'
-                            : 'bg-white/10 text-white/60 hover:bg-white/20'
-                        }`}
-                      >
-                        {month}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Spezifische Jahr-Monat Auswahl */}
-              {newIncome.incomeType === 'specific' && (
-                <div>
-                  <label className="block text-sm font-medium mb-2">Spezifisches Jahr und Monat</label>
-                  <div className="grid grid-cols-3 gap-3 mb-3">
-                    <div className="col-span-1">
-                      <select
-                        value={newIncome.specificYear}
-                        onChange={(e) => setNewIncome({ ...newIncome, specificYear: parseInt(e.target.value) })}
-                        className="select w-full"
-                      >
-                        {Array.from({ length: 5 }, (_, i) => {
-                          const year = new Date().getFullYear() + i;
-                          return (
-                            <option key={year} value={year}>
-                              {year}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </div>
-                    <div className="col-span-1">
-                      <select
-                        value={newIncome.specificMonth}
-                        onChange={(e) => setNewIncome({ ...newIncome, specificMonth: parseInt(e.target.value) })}
-                        className="select w-full"
-                      >
-                        {monthNames.map((month, index) => (
-                          <option key={index} value={index}>
-                            {month}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="col-span-1">
-                      <button
-                        type="button"
-                        onClick={addSpecificMonth}
-                        className="btn-primary w-full"
-                      >
-                        + Hinzufügen
-                      </button>
-                    </div>
-                  </div>
-                  {/* Ausgewählte spezifische Monate */}
-                  {newIncome.specificMonths.length > 0 && (
-                    <div className="bg-white/5 rounded-lg p-3">
-                      <p className="text-xs text-white/60 mb-2">Ausgewählte Monate:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {newIncome.specificMonths.map((ym) => {
-                          const year = Math.floor(ym / 100);
-                          const month = ym % 100;
-                          return (
-                            <span
-                              key={ym}
-                              className="bg-green-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
-                            >
-                              {monthNames[month - 1]} {year}
-                              <button
-                                type="button"
-                                onClick={() => removeSpecificMonth(ym)}
-                                className="hover:text-red-300"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
 
               <button type="submit" className="btn-primary w-full">
                 Einnahme hinzufügen
@@ -623,90 +479,28 @@ const Settings: React.FC = () => {
                         />
                       </div>
 
-                      {/* Art der Einnahme */}
+                      {/* Monate */}
                       <div>
-                        <label className="block text-sm font-medium mb-2">Art der Einnahme</label>
-                        <div className="grid grid-cols-2 gap-3">
-                          <button
-                            type="button"
-                            onClick={() => setEditIncomeForm({ ...editIncomeForm, incomeType: 'recurring' })}
-                            className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                              editIncomeForm.incomeType === 'recurring'
-                                ? 'bg-green-600 text-white'
-                                : 'bg-white/10 text-white/60 hover:bg-white/20'
-                            }`}
-                          >
-                            🔄 Wiederkehrend
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditIncomeForm({ ...editIncomeForm, incomeType: 'specific' })}
-                            className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                              editIncomeForm.incomeType === 'specific'
-                                ? 'bg-green-600 text-white'
-                                : 'bg-white/10 text-white/60 hover:bg-white/20'
-                            }`}
-                          >
-                            📅 Einmalig
-                          </button>
+                        <label className="block text-sm font-medium mb-2">
+                          Gilt für Monate (leer = alle Monate)
+                        </label>
+                        <div className="grid grid-cols-6 gap-2">
+                          {monthNames.map((month, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => toggleEditIncomeMonth(index + 1)}
+                              className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                                editIncomeForm.months.includes(index + 1)
+                                  ? 'bg-green-600 text-white'
+                                  : 'bg-white/10 text-white/60 hover:bg-white/20'
+                              }`}
+                            >
+                              {month}
+                            </button>
+                          ))}
                         </div>
                       </div>
-
-                      {/* Wiederkehrende Monate */}
-                      {editIncomeForm.incomeType === 'recurring' && (
-                        <div>
-                          <label className="block text-sm font-medium mb-2">Monate</label>
-                          <div className="grid grid-cols-6 gap-2">
-                            {monthNames.map((month, index) => (
-                              <button
-                                key={index}
-                                type="button"
-                                onClick={() => toggleEditIncomeMonth(index + 1)}
-                                className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                                  editIncomeForm.months.includes(index + 1)
-                                    ? 'bg-green-600 text-white'
-                                    : 'bg-white/10 text-white/60 hover:bg-white/20'
-                                }`}
-                              >
-                                {month}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Spezifische Monate */}
-                      {editIncomeForm.incomeType === 'specific' && (
-                        <div>
-                          <label className="block text-sm font-medium mb-2">Spezifische Monate</label>
-                          {editIncomeForm.specificMonths.length > 0 && (
-                            <div className="bg-white/5 rounded-lg p-3 mb-3">
-                              <div className="flex flex-wrap gap-2">
-                                {editIncomeForm.specificMonths.map((ym) => {
-                                  const year = Math.floor(ym / 100);
-                                  const month = ym % 100;
-                                  return (
-                                    <span
-                                      key={ym}
-                                      className="bg-green-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
-                                    >
-                                      {monthNames[month - 1]} {year}
-                                      <button
-                                        type="button"
-                                        onClick={() => removeEditSpecificMonth(ym)}
-                                        className="hover:text-red-300"
-                                      >
-                                        ×
-                                      </button>
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-                          <p className="text-xs text-white/60">Hinweis: Um neue Monate hinzuzufügen, schließen Sie zuerst die Bearbeitung ab.</p>
-                        </div>
-                      )}
 
                       <div className="flex gap-2">
                         <button onClick={handleSaveIncome} className="btn-primary flex-1">
@@ -730,24 +524,13 @@ const Settings: React.FC = () => {
                         </p>
                         {income.months && income.months.length > 0 && (
                           <p className="text-sm text-white/60 mt-1">
-                            🔄 Wiederkehrend: {income.months.map((m) => monthNames[m - 1]).join(', ')}
+                            Monate: {income.months.map((m) => monthNames[m - 1]).join(', ')}
                           </p>
                         )}
-                        {income.specificMonths && income.specificMonths.length > 0 && (
-                          <div className="text-sm text-white/60 mt-1">
-                            <p className="mb-1">📅 Einmalig:</p>
-                            <div className="flex flex-wrap gap-1">
-                              {income.specificMonths.map((ym) => {
-                                const year = Math.floor(ym / 100);
-                                const month = ym % 100;
-                                return (
-                                  <span key={ym} className="bg-green-600/30 px-2 py-0.5 rounded text-xs">
-                                    {monthNames[month - 1]} {year}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          </div>
+                        {(!income.months || income.months.length === 0) && !income.specificMonths && (
+                          <p className="text-sm text-white/60 mt-1">
+                            Alle Monate
+                          </p>
                         )}
                       </div>
                       <div className="flex gap-2">
@@ -781,10 +564,10 @@ const Settings: React.FC = () => {
 
         {/* Fixkosten */}
         <div>
-          {/* Monatswähler */}
+          {/* Monatswähler - nur zur Filterung */}
           <div className="card mb-6 bg-gradient-to-br from-purple-500/10 to-blue-500/10 border-purple-500/20">
-            <h3 className="text-xl font-bold mb-4 text-purple-300">📅 Monat auswählen</h3>
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <h3 className="text-xl font-bold mb-4 text-purple-300">📅 Filter: Fixkosten anzeigen für</h3>
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Monat</label>
                 <select
@@ -817,26 +600,13 @@ const Settings: React.FC = () => {
                 </select>
               </div>
             </div>
-            <div className="bg-white/5 rounded-lg p-4">
-              <p className="text-sm text-white/70 mb-3">
-                Aktuell angezeigt: <span className="font-bold text-purple-300">{getMonthName(selectedMonth)} {selectedYear}</span>
-              </p>
-              {fixedCosts.length === 0 && (
-                <button
-                  onClick={handleCopyFromPreviousMonth}
-                  className="w-full bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/40 hover:to-blue-500/40 text-purple-200 font-medium py-3 px-4 rounded-lg transition-all border border-purple-500/30 hover:border-purple-400/50"
-                >
-                  📋 Fixkosten vom Vormonat übernehmen
-                </button>
-              )}
-              {fixedCosts.length > 0 && (
-                <p className="text-sm text-green-400">✓ {fixedCosts.length} Fixkosten vorhanden</p>
-              )}
-            </div>
+            <p className="text-sm text-white/60 mt-3">
+              Zeige {filteredFixedCosts.length} Fixkosten für {getMonthName(selectedMonth)} {selectedYear}
+            </p>
           </div>
 
           <div className="card mb-6">
-            <h2 className="text-2xl font-bold mb-4 text-red-400">Fixkosten für {getMonthName(selectedMonth)} {selectedYear} hinzufügen</h2>
+            <h2 className="text-2xl font-bold mb-4 text-red-400">Fixkosten hinzufügen</h2>
             <form onSubmit={handleAddFixedCost} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Bezeichnung</label>
@@ -861,6 +631,27 @@ const Settings: React.FC = () => {
                   required
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Gilt für Monate (leer = alle Monate)
+                </label>
+                <div className="grid grid-cols-6 gap-2">
+                  {monthNames.map((month, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => toggleFixedCostMonth(index + 1)}
+                      className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                        newFixedCost.months.includes(index + 1)
+                          ? 'bg-red-600 text-white'
+                          : 'bg-white/10 text-white/60 hover:bg-white/20'
+                      }`}
+                    >
+                      {month}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <button type="submit" className="btn-primary w-full">
                 Fixkosten hinzufügen
               </button>
@@ -868,12 +659,12 @@ const Settings: React.FC = () => {
           </div>
 
           <div className="card">
-            <h3 className="text-xl font-bold mb-4 text-red-300">Ihre Fixkosten</h3>
+            <h3 className="text-xl font-bold mb-4 text-red-300">Ihre Fixkosten für {getMonthName(selectedMonth)} {selectedYear}</h3>
             <p className="text-sm text-white/60 mb-4">
               💡 Klicken Sie auf eine Fixkosten-Karte, um sie für diesen Monat als bezahlt zu markieren
             </p>
             <div className="space-y-3">
-              {fixedCosts.map((cost) => {
+              {filteredFixedCosts.map((cost) => {
                 const currentMonth = new Date().getMonth();
                 const currentYear = new Date().getFullYear();
                 const monthKey = currentYear * 100 + (currentMonth + 1);
@@ -902,6 +693,27 @@ const Settings: React.FC = () => {
                             onChange={(e) => setEditFixedCostForm({ ...editFixedCostForm, amount: e.target.value })}
                             className="input w-full"
                           />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">
+                            Gilt für Monate (leer = alle Monate)
+                          </label>
+                          <div className="grid grid-cols-6 gap-2">
+                            {monthNames.map((month, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => toggleEditFixedCostMonth(index + 1)}
+                                className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                                  editFixedCostForm.months.includes(index + 1)
+                                    ? 'bg-red-600 text-white'
+                                    : 'bg-white/10 text-white/60 hover:bg-white/20'
+                                }`}
+                              >
+                                {month}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           <button onClick={handleSaveFixedCost} className="btn-primary flex-1">
@@ -937,6 +749,16 @@ const Settings: React.FC = () => {
                           <p className={`text-2xl font-bold ${isPaid ? 'text-green-400' : 'text-red-400'}`}>
                             {formatCurrency(cost.amount)}
                           </p>
+                          {cost.months && cost.months.length > 0 && (
+                            <p className="text-sm text-white/60 mt-1">
+                              Monate: {cost.months.map((m) => monthNames[m - 1]).join(', ')}
+                            </p>
+                          )}
+                          {(!cost.months || cost.months.length === 0) && !cost.yearMonth && (
+                            <p className="text-sm text-white/60 mt-1">
+                              Alle Monate
+                            </p>
+                          )}
                         </div>
                         <div className="flex gap-2 pointer-events-auto">
                           <button
@@ -967,8 +789,8 @@ const Settings: React.FC = () => {
                   </div>
                 );
               })}
-              {fixedCosts.length === 0 && (
-                <p className="text-white/60 text-center py-8">Noch keine Fixkosten erfasst</p>
+              {filteredFixedCosts.length === 0 && (
+                <p className="text-white/60 text-center py-8">Keine Fixkosten für {getMonthName(selectedMonth)} {selectedYear}</p>
               )}
             </div>
           </div>
