@@ -17,7 +17,7 @@ const Header: React.FC = () => {
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/20 to-purple-400/20 rounded-full blur-2xl opacity-40 group-hover:opacity-70 transition-opacity duration-700"></div>
               <img
-                src="/logocashplan.png"
+                src="/logo.png"
                 alt="Cashplan Logo"
                 className="w-14 h-14 md:w-20 md:h-20 relative z-10 rounded-full object-cover shadow-2xl"
               />
