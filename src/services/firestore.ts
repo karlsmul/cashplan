@@ -179,6 +179,67 @@ export const subscribeToFixedCosts = (
   });
 };
 
+// Monatsspezifische Fixkosten
+export const subscribeToFixedCostsForMonth = (
+  userId: string,
+  yearMonth: number,
+  callback: (fixedCosts: FixedCost[]) => void
+) => {
+  const fixedCostsRef = collection(db, 'fixedCosts');
+  const q = query(
+    fixedCostsRef,
+    where('userId', '==', userId),
+    where('yearMonth', '==', yearMonth)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const fixedCosts = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as FixedCost[];
+    callback(fixedCosts);
+  });
+};
+
+export const getFixedCostsForMonth = async (userId: string, yearMonth: number) => {
+  const fixedCostsRef = collection(db, 'fixedCosts');
+  const q = query(
+    fixedCostsRef,
+    where('userId', '==', userId),
+    where('yearMonth', '==', yearMonth)
+  );
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  })) as FixedCost[];
+};
+
+export const copyFixedCostsFromPreviousMonth = async (
+  userId: string,
+  fromYearMonth: number,
+  toYearMonth: number
+) => {
+  // Hole Fixkosten vom Quellmonat
+  const sourceCosts = await getFixedCostsForMonth(userId, fromYearMonth);
+
+  // Kopiere jede Fixkosten zum Zielmonat
+  const copyPromises = sourceCosts.map(async (cost) => {
+    const newCost: Omit<FixedCost, 'id'> = {
+      name: cost.name,
+      amount: cost.amount,
+      yearMonth: toYearMonth,
+      userId: userId,
+      // paidMonths nicht kopieren, da neuer Monat
+    };
+    return addFixedCost(newCost);
+  });
+
+  await Promise.all(copyPromises);
+  return sourceCosts.length; // Anzahl der kopierten Fixkosten
+};
+
 export const subscribeToIncomes = (
   userId: string,
   callback: (incomes: Income[]) => void

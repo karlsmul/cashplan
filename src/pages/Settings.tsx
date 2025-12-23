@@ -8,7 +8,8 @@ import {
   deleteIncome,
   updateFixedCost,
   updateIncome,
-  subscribeToFixedCosts,
+  subscribeToFixedCostsForMonth,
+  copyFixedCostsFromPreviousMonth,
   subscribeToIncomes,
   deleteAllExpenses,
   deleteExpensesForMonth
@@ -19,6 +20,11 @@ const Settings: React.FC = () => {
   const { user } = useAuth();
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
+
+  // Monatswähler für Fixkosten
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const selectedYearMonth = selectedYear * 100 + (selectedMonth + 1);
 
   const [newFixedCost, setNewFixedCost] = useState({
     name: '',
@@ -69,14 +75,19 @@ const Settings: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
-    const unsubscribeFixedCosts = subscribeToFixedCosts(user.uid, setFixedCosts);
+    // Monatsspezifische Fixkosten laden
+    const unsubscribeFixedCosts = subscribeToFixedCostsForMonth(
+      user.uid,
+      selectedYearMonth,
+      setFixedCosts
+    );
     const unsubscribeIncomes = subscribeToIncomes(user.uid, setIncomes);
 
     return () => {
       unsubscribeFixedCosts();
       unsubscribeIncomes();
     };
-  }, [user]);
+  }, [user, selectedYearMonth]);
 
   const handleAddFixedCost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,21 +100,9 @@ const Settings: React.FC = () => {
       const fixedCostData: any = {
         name: newFixedCost.name,
         amount: parseFloat(newFixedCost.amount),
+        yearMonth: selectedYearMonth, // Monatsspezifisch
         userId: user.uid
       };
-
-      // Je nach Typ: Wiederkehrend oder Spezifisch
-      if (newFixedCost.costType === 'recurring') {
-        // Nur months hinzufügen, wenn welche ausgewählt wurden
-        if (newFixedCost.months.length > 0) {
-          fixedCostData.months = newFixedCost.months;
-        }
-      } else {
-        // Spezifische Monate (YYYYMM)
-        if (newFixedCost.specificMonths.length > 0) {
-          fixedCostData.specificMonths = newFixedCost.specificMonths;
-        }
-      }
 
       await addFixedCost(fixedCostData);
 
@@ -202,32 +201,6 @@ const Settings: React.FC = () => {
     }
   };
 
-  const toggleMonth = (month: number) => {
-    setNewFixedCost((prev) => {
-      const months = prev.months.includes(month)
-        ? prev.months.filter((m) => m !== month)
-        : [...prev.months, month].sort((a, b) => a - b);
-      return { ...prev, months };
-    });
-  };
-
-  const addSpecificCostMonth = () => {
-    const yearMonth = newFixedCost.specificYear * 100 + (newFixedCost.specificMonth + 1); // YYYYMM
-    if (!newFixedCost.specificMonths.includes(yearMonth)) {
-      setNewFixedCost((prev) => ({
-        ...prev,
-        specificMonths: [...prev.specificMonths, yearMonth].sort((a, b) => a - b)
-      }));
-    }
-  };
-
-  const removeSpecificCostMonth = (yearMonth: number) => {
-    setNewFixedCost((prev) => ({
-      ...prev,
-      specificMonths: prev.specificMonths.filter((m) => m !== yearMonth)
-    }));
-  };
-
   const toggleIncomeMonth = (month: number) => {
     setNewIncome((prev) => {
       const months = prev.months.includes(month)
@@ -244,22 +217,6 @@ const Settings: React.FC = () => {
         : [...prev.months, month].sort((a, b) => a - b);
       return { ...prev, months };
     });
-  };
-
-  const toggleEditFixedCostMonth = (month: number) => {
-    setEditFixedCostForm((prev) => {
-      const months = prev.months.includes(month)
-        ? prev.months.filter((m) => m !== month)
-        : [...prev.months, month].sort((a, b) => a - b);
-      return { ...prev, months };
-    });
-  };
-
-  const removeEditSpecificCostMonth = (yearMonth: number) => {
-    setEditFixedCostForm((prev) => ({
-      ...prev,
-      specificMonths: prev.specificMonths.filter((m) => m !== yearMonth)
-    }));
   };
 
   const addSpecificMonth = () => {
@@ -338,13 +295,12 @@ const Settings: React.FC = () => {
 
   const handleEditFixedCost = (cost: FixedCost) => {
     setEditingFixedCost(cost);
-    const hasSpecificMonths = cost.specificMonths && cost.specificMonths.length > 0;
     setEditFixedCostForm({
       name: cost.name,
       amount: cost.amount.toString(),
-      costType: hasSpecificMonths ? 'specific' : 'recurring',
-      months: cost.months || [],
-      specificMonths: cost.specificMonths || []
+      costType: 'recurring', // Legacy field
+      months: [],
+      specificMonths: []
     });
   };
 
@@ -356,25 +312,6 @@ const Settings: React.FC = () => {
         name: editFixedCostForm.name,
         amount: parseFloat(editFixedCostForm.amount)
       };
-
-      if (editFixedCostForm.costType === 'recurring') {
-        if (editFixedCostForm.months.length > 0) {
-          updateData.months = editFixedCostForm.months;
-        } else {
-          updateData.months = [];
-        }
-        // Spezifische Monate löschen
-        updateData.specificMonths = [];
-      } else {
-        // Spezifische Monate
-        if (editFixedCostForm.specificMonths.length > 0) {
-          updateData.specificMonths = editFixedCostForm.specificMonths;
-        } else {
-          updateData.specificMonths = [];
-        }
-        // Wiederkehrende Monate löschen
-        updateData.months = [];
-      }
 
       await updateFixedCost(editingFixedCost.id, updateData);
       setEditingFixedCost(null);
@@ -441,6 +378,38 @@ const Settings: React.FC = () => {
       setError(error.message || 'Fehler beim Löschen der Ausgaben.');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleCopyFromPreviousMonth = async () => {
+    if (!user) return;
+
+    // Vormonat berechnen
+    let prevMonth = selectedMonth - 1;
+    let prevYear = selectedYear;
+    if (prevMonth < 0) {
+      prevMonth = 11;
+      prevYear--;
+    }
+    const prevYearMonth = prevYear * 100 + (prevMonth + 1);
+
+    setError('');
+    setSuccess('');
+
+    try {
+      const count = await copyFixedCostsFromPreviousMonth(user.uid, prevYearMonth, selectedYearMonth);
+      if (count > 0) {
+        setSuccess(`${count} Fixkosten vom ${getMonthName(prevMonth)} ${prevYear} übernommen!`);
+      } else {
+        setError(`Keine Fixkosten im ${getMonthName(prevMonth)} ${prevYear} gefunden.`);
+      }
+      setTimeout(() => {
+        setSuccess('');
+        setError('');
+      }, 5000);
+    } catch (error: any) {
+      console.error('Fehler beim Kopieren der Fixkosten:', error);
+      setError(error.message || 'Fehler beim Kopieren der Fixkosten.');
     }
   };
 
@@ -812,8 +781,62 @@ const Settings: React.FC = () => {
 
         {/* Fixkosten */}
         <div>
+          {/* Monatswähler */}
+          <div className="card mb-6 bg-gradient-to-br from-purple-500/10 to-blue-500/10 border-purple-500/20">
+            <h3 className="text-xl font-bold mb-4 text-purple-300">📅 Monat auswählen</h3>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Monat</label>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                  className="select w-full"
+                >
+                  {monthNames.map((month, index) => (
+                    <option key={index} value={index}>
+                      {month}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Jahr</label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                  className="select w-full"
+                >
+                  {Array.from({ length: 3 }, (_, i) => {
+                    const year = new Date().getFullYear() - 1 + i;
+                    return (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+            <div className="bg-white/5 rounded-lg p-4">
+              <p className="text-sm text-white/70 mb-3">
+                Aktuell angezeigt: <span className="font-bold text-purple-300">{getMonthName(selectedMonth)} {selectedYear}</span>
+              </p>
+              {fixedCosts.length === 0 && (
+                <button
+                  onClick={handleCopyFromPreviousMonth}
+                  className="w-full bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/40 hover:to-blue-500/40 text-purple-200 font-medium py-3 px-4 rounded-lg transition-all border border-purple-500/30 hover:border-purple-400/50"
+                >
+                  📋 Fixkosten vom Vormonat übernehmen
+                </button>
+              )}
+              {fixedCosts.length > 0 && (
+                <p className="text-sm text-green-400">✓ {fixedCosts.length} Fixkosten vorhanden</p>
+              )}
+            </div>
+          </div>
+
           <div className="card mb-6">
-            <h2 className="text-2xl font-bold mb-4 text-red-400">Fixkosten hinzufügen</h2>
+            <h2 className="text-2xl font-bold mb-4 text-red-400">Fixkosten für {getMonthName(selectedMonth)} {selectedYear} hinzufügen</h2>
             <form onSubmit={handleAddFixedCost} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Bezeichnung</label>
@@ -838,133 +861,6 @@ const Settings: React.FC = () => {
                   required
                 />
               </div>
-              {/* Art der Fixkosten */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Art der Fixkosten</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setNewFixedCost({ ...newFixedCost, costType: 'recurring' })}
-                    className={`py-3 px-4 rounded-lg font-medium transition-all ${
-                      newFixedCost.costType === 'recurring'
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-white/10 text-white/60 hover:bg-white/20'
-                    }`}
-                  >
-                    🔄 Wiederkehrend
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewFixedCost({ ...newFixedCost, costType: 'specific' })}
-                    className={`py-3 px-4 rounded-lg font-medium transition-all ${
-                      newFixedCost.costType === 'specific'
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-white/10 text-white/60 hover:bg-white/20'
-                    }`}
-                  >
-                    📅 Einmalig
-                  </button>
-                </div>
-              </div>
-
-              {/* Wiederkehrende Monate */}
-              {newFixedCost.costType === 'recurring' && (
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Monate (leer lassen für alle Monate)
-                  </label>
-                  <div className="grid grid-cols-6 gap-2">
-                    {monthNames.map((month, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        onClick={() => toggleMonth(index + 1)}
-                        className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                          newFixedCost.months.includes(index + 1)
-                            ? 'bg-purple-600 text-white'
-                            : 'bg-white/10 text-white/60 hover:bg-white/20'
-                        }`}
-                      >
-                        {month}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Spezifische Jahr-Monat Auswahl */}
-              {newFixedCost.costType === 'specific' && (
-                <div>
-                  <label className="block text-sm font-medium mb-2">Spezifisches Jahr und Monat</label>
-                  <div className="grid grid-cols-3 gap-3 mb-3">
-                    <div className="col-span-1">
-                      <select
-                        value={newFixedCost.specificYear}
-                        onChange={(e) => setNewFixedCost({ ...newFixedCost, specificYear: parseInt(e.target.value) })}
-                        className="select w-full"
-                      >
-                        {Array.from({ length: 5 }, (_, i) => {
-                          const year = new Date().getFullYear() + i;
-                          return (
-                            <option key={year} value={year}>
-                              {year}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </div>
-                    <div className="col-span-1">
-                      <select
-                        value={newFixedCost.specificMonth}
-                        onChange={(e) => setNewFixedCost({ ...newFixedCost, specificMonth: parseInt(e.target.value) })}
-                        className="select w-full"
-                      >
-                        {monthNames.map((month, index) => (
-                          <option key={index} value={index}>
-                            {month}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="col-span-1">
-                      <button
-                        type="button"
-                        onClick={addSpecificCostMonth}
-                        className="btn-primary w-full"
-                      >
-                        + Hinzufügen
-                      </button>
-                    </div>
-                  </div>
-                  {/* Ausgewählte spezifische Monate */}
-                  {newFixedCost.specificMonths.length > 0 && (
-                    <div className="bg-white/5 rounded-lg p-3">
-                      <p className="text-xs text-white/60 mb-2">Ausgewählte Monate:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {newFixedCost.specificMonths.map((ym) => {
-                          const year = Math.floor(ym / 100);
-                          const month = ym % 100;
-                          return (
-                            <span
-                              key={ym}
-                              className="bg-purple-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
-                            >
-                              {monthNames[month - 1]} {year}
-                              <button
-                                type="button"
-                                onClick={() => removeSpecificCostMonth(ym)}
-                                className="hover:text-red-300"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
               <button type="submit" className="btn-primary w-full">
                 Fixkosten hinzufügen
               </button>
@@ -1007,90 +903,6 @@ const Settings: React.FC = () => {
                             className="input w-full"
                           />
                         </div>
-                        {/* Art der Fixkosten */}
-                        <div>
-                          <label className="block text-sm font-medium mb-2">Art der Fixkosten</label>
-                          <div className="grid grid-cols-2 gap-3">
-                            <button
-                              type="button"
-                              onClick={() => setEditFixedCostForm({ ...editFixedCostForm, costType: 'recurring' })}
-                              className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                                editFixedCostForm.costType === 'recurring'
-                                  ? 'bg-purple-600 text-white'
-                                  : 'bg-white/10 text-white/60 hover:bg-white/20'
-                              }`}
-                            >
-                              🔄 Wiederkehrend
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditFixedCostForm({ ...editFixedCostForm, costType: 'specific' })}
-                              className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                                editFixedCostForm.costType === 'specific'
-                                  ? 'bg-purple-600 text-white'
-                                  : 'bg-white/10 text-white/60 hover:bg-white/20'
-                              }`}
-                            >
-                              📅 Einmalig
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Wiederkehrende Monate */}
-                        {editFixedCostForm.costType === 'recurring' && (
-                          <div>
-                            <label className="block text-sm font-medium mb-2">Monate</label>
-                            <div className="grid grid-cols-6 gap-2">
-                              {monthNames.map((month, index) => (
-                                <button
-                                  key={index}
-                                  type="button"
-                                  onClick={() => toggleEditFixedCostMonth(index + 1)}
-                                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                                    editFixedCostForm.months.includes(index + 1)
-                                      ? 'bg-purple-600 text-white'
-                                      : 'bg-white/10 text-white/60 hover:bg-white/20'
-                                  }`}
-                                >
-                                  {month}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Spezifische Monate */}
-                        {editFixedCostForm.costType === 'specific' && (
-                          <div>
-                            <label className="block text-sm font-medium mb-2">Spezifische Monate</label>
-                            {editFixedCostForm.specificMonths.length > 0 && (
-                              <div className="bg-white/5 rounded-lg p-3 mb-3">
-                                <div className="flex flex-wrap gap-2">
-                                  {editFixedCostForm.specificMonths.map((ym) => {
-                                    const year = Math.floor(ym / 100);
-                                    const month = ym % 100;
-                                    return (
-                                      <span
-                                        key={ym}
-                                        className="bg-purple-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
-                                      >
-                                        {monthNames[month - 1]} {year}
-                                        <button
-                                          type="button"
-                                          onClick={() => removeEditSpecificCostMonth(ym)}
-                                          className="hover:text-red-300"
-                                        >
-                                          ×
-                                        </button>
-                                      </span>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                            <p className="text-xs text-white/60">Hinweis: Um neue Monate hinzuzufügen, schließen Sie zuerst die Bearbeitung ab.</p>
-                          </div>
-                        )}
                         <div className="flex gap-2">
                           <button onClick={handleSaveFixedCost} className="btn-primary flex-1">
                             ✓ Speichern
@@ -1125,27 +937,6 @@ const Settings: React.FC = () => {
                           <p className={`text-2xl font-bold ${isPaid ? 'text-green-400' : 'text-red-400'}`}>
                             {formatCurrency(cost.amount)}
                           </p>
-                          {cost.months && cost.months.length > 0 && (
-                            <p className="text-sm text-white/60 mt-1">
-                              🔄 Wiederkehrend: {cost.months.map((m) => monthNames[m - 1]).join(', ')}
-                            </p>
-                          )}
-                          {cost.specificMonths && cost.specificMonths.length > 0 && (
-                            <div className="text-sm text-white/60 mt-1">
-                              <p className="mb-1">📅 Einmalig:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {cost.specificMonths.map((ym) => {
-                                  const year = Math.floor(ym / 100);
-                                  const month = ym % 100;
-                                  return (
-                                    <span key={ym} className="bg-purple-600/30 px-2 py-0.5 rounded text-xs">
-                                      {monthNames[month - 1]} {year}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
                         </div>
                         <div className="flex gap-2 pointer-events-auto">
                           <button

@@ -51,12 +51,17 @@ const Analytics: React.FC = () => {
     .filter((cost) => {
       const currentYearMonth = selectedYear * 100 + (selectedMonth + 1); // YYYYMM
 
-      // Prüfe zuerst spezifische Monate
+      // Neues Format: yearMonth (monatsspezifisch)
+      if (cost.yearMonth) {
+        return cost.yearMonth === currentYearMonth;
+      }
+
+      // Legacy: Prüfe spezifische Monate
       if (cost.specificMonths && cost.specificMonths.length > 0) {
         return cost.specificMonths.includes(currentYearMonth);
       }
 
-      // Sonst prüfe wiederkehrende Monate
+      // Legacy: Prüfe wiederkehrende Monate
       return !cost.months || cost.months.includes(selectedMonth + 1);
     })
     .reduce((sum, cost) => sum + cost.amount, 0);
@@ -126,12 +131,17 @@ const Analytics: React.FC = () => {
         // Fixkosten für diesen Monat
         const monthFixedCosts = fixedCosts
           .filter((cost) => {
-            // Prüfe zuerst spezifische Monate
+            // Neues Format: yearMonth (monatsspezifisch)
+            if (cost.yearMonth) {
+              return cost.yearMonth === yearMonth;
+            }
+
+            // Legacy: Prüfe spezifische Monate
             if (cost.specificMonths && cost.specificMonths.length > 0) {
               return cost.specificMonths.includes(yearMonth);
             }
 
-            // Sonst prüfe wiederkehrende Monate
+            // Legacy: Prüfe wiederkehrende Monate
             return !cost.months || cost.months.includes(month);
           })
           .reduce((sum, cost) => sum + cost.amount, 0);

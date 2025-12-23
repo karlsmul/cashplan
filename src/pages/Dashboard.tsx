@@ -59,12 +59,17 @@ const Dashboard: React.FC = () => {
     .filter((cost) => {
       const currentYearMonth = currentYear * 100 + (currentMonth + 1); // YYYYMM
 
-      // Prüfe zuerst spezifische Monate
+      // Neues Format: yearMonth (monatsspezifisch)
+      if (cost.yearMonth) {
+        return cost.yearMonth === currentYearMonth;
+      }
+
+      // Legacy: Prüfe spezifische Monate
       if (cost.specificMonths && cost.specificMonths.length > 0) {
         return cost.specificMonths.includes(currentYearMonth);
       }
 
-      // Sonst prüfe wiederkehrende Monate
+      // Legacy: Prüfe wiederkehrende Monate
       return !cost.months || cost.months.includes(currentMonth + 1);
     })
     .reduce((sum, cost) => sum + cost.amount, 0);
