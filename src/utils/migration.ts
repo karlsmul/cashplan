@@ -36,13 +36,16 @@ export const migrateLegacyData = async (userId: string) => {
     // Fall 1: specificMonths vorhanden - direkt konvertieren
     if ((cost as any).specificMonths && (cost as any).specificMonths.length > 0) {
       for (const ym of (cost as any).specificMonths) {
-        await addFixedCost({
+        const newCost: any = {
           name: cost.name,
           amount: cost.amount,
           yearMonth: ym,
-          userId: userId,
-          paidMonths: cost.paidMonths
-        });
+          userId: userId
+        };
+        if (cost.paidMonths && cost.paidMonths.length > 0) {
+          newCost.paidMonths = cost.paidMonths;
+        }
+        await addFixedCost(newCost);
         migratedCosts++;
       }
       // Lösche alten Eintrag
@@ -61,13 +64,16 @@ export const migrateLegacyData = async (userId: string) => {
 
         if (months.includes(monthNumber)) {
           const yearMonth = targetYear * 100 + monthNumber;
-          await addFixedCost({
+          const newCost: any = {
             name: cost.name,
             amount: cost.amount,
             yearMonth: yearMonth,
-            userId: userId,
-            paidMonths: cost.paidMonths
-          });
+            userId: userId
+          };
+          if (cost.paidMonths && cost.paidMonths.length > 0) {
+            newCost.paidMonths = cost.paidMonths;
+          }
+          await addFixedCost(newCost);
           migratedCosts++;
         }
       }
@@ -82,13 +88,16 @@ export const migrateLegacyData = async (userId: string) => {
         const targetYear = currentYear + Math.floor((currentMonth + i) / 12);
         const yearMonth = targetYear * 100 + (targetMonth + 1);
 
-        await addFixedCost({
+        const newCost: any = {
           name: cost.name,
           amount: cost.amount,
           yearMonth: yearMonth,
-          userId: userId,
-          paidMonths: cost.paidMonths
-        });
+          userId: userId
+        };
+        if (cost.paidMonths && cost.paidMonths.length > 0) {
+          newCost.paidMonths = cost.paidMonths;
+        }
+        await addFixedCost(newCost);
         migratedCosts++;
       }
       // Lösche alten Eintrag
