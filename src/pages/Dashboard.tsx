@@ -13,21 +13,22 @@ import { getWeeksInMonth, formatCurrency, getMonthName, calculateTrend } from '.
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [currentDate] = useState(new Date());
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
 
-  const currentMonth = currentDate.getMonth();
-  const currentYear = currentDate.getFullYear();
-  const weeks = getWeeksInMonth(currentYear, currentMonth);
+  const weeks = getWeeksInMonth(selectedYear, selectedMonth);
+  const selectedYearMonth = selectedYear * 100 + (selectedMonth + 1);
 
   useEffect(() => {
     if (!user) return;
 
     const unsubscribeExpenses = subscribeToExpenses(
       user.uid,
-      currentMonth,
-      currentYear,
+      selectedMonth,
+      selectedYear,
       setExpenses
     );
 
@@ -39,56 +40,78 @@ const Dashboard: React.FC = () => {
       unsubscribeFixedCosts();
       unsubscribeIncomes();
     };
-  }, [user, currentMonth, currentYear]);
+  }, [user, selectedMonth, selectedYear]);
 
+  // Filtere Einnahmen für den ausgewählten Monat
   const totalIncome = incomes
-    .filter((income) => {
-      const currentYearMonth = currentYear * 100 + (currentMonth + 1); // YYYYMM
-
-      // Prüfe zuerst spezifische Monate
-      if (income.specificMonths && income.specificMonths.length > 0) {
-        return income.specificMonths.includes(currentYearMonth);
-      }
-
-      // Sonst prüfe wiederkehrende Monate
-      return !income.months || income.months.includes(currentMonth + 1);
-    })
+    .filter((income) => income.yearMonth === selectedYearMonth)
     .reduce((sum, income) => sum + income.amount, 0);
 
+  // Filtere Fixkosten für den ausgewählten Monat
   const monthlyFixedCosts = fixedCosts
-    .filter((cost) => {
-      const currentYearMonth = currentYear * 100 + (currentMonth + 1); // YYYYMM
-
-      // Neues Format: yearMonth (monatsspezifisch)
-      if (cost.yearMonth) {
-        return cost.yearMonth === currentYearMonth;
-      }
-
-      // Legacy: Prüfe spezifische Monate
-      if (cost.specificMonths && cost.specificMonths.length > 0) {
-        return cost.specificMonths.includes(currentYearMonth);
-      }
-
-      // Legacy: Prüfe wiederkehrende Monate
-      return !cost.months || cost.months.includes(currentMonth + 1);
-    })
+    .filter((cost) => cost.yearMonth === selectedYearMonth)
     .reduce((sum, cost) => sum + cost.amount, 0);
 
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
   const balance = totalIncome - monthlyFixedCosts - totalExpenses;
 
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const daysElapsed = currentDate.getDate();
+  const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+  // Nur Trend berechnen wenn aktueller Monat ausgewählt
+  const isCurrentMonth = selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
+  const daysElapsed = isCurrentMonth ? currentDate.getDate() : daysInMonth;
   const expenseAmounts = expenses.map((e) => e.amount);
   const trend = calculateTrend(expenseAmounts, daysElapsed, daysInMonth);
   const projectedBalance = totalIncome - monthlyFixedCosts - trend;
 
+  const monthNames = [
+    'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+    'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+  ];
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-yellow-400 via-green-400 to-blue-400 bg-clip-text text-transparent">
-        Dashboard - {getMonthName(currentMonth)} {currentYear}
+        Dashboard - {getMonthName(selectedMonth)} {selectedYear}
       </h1>
+
+      {/* Monatswähler */}
+      <div className="card mb-6 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/20">
+        <h3 className="text-xl font-bold mb-4 text-cyan-300">📅 Monat auswählen</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Monat</label>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+              className="select w-full"
+            >
+              {monthNames.map((month, index) => (
+                <option key={index} value={index}>
+                  {month}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Jahr</label>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              className="select w-full"
+            >
+              {Array.from({ length: 5 }, (_, i) => {
+                const year = new Date().getFullYear() - 1 + i;
+                return (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        </div>
+      </div>
 
       <ExpenseForm onSuccess={() => {}} />
 

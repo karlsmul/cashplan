@@ -255,3 +255,41 @@ export const subscribeToIncomes = (
     callback(incomes);
   });
 };
+
+export const getIncomesForMonth = async (userId: string, yearMonth: number) => {
+  const incomesRef = collection(db, 'incomes');
+  const q = query(
+    incomesRef,
+    where('userId', '==', userId),
+    where('yearMonth', '==', yearMonth)
+  );
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  })) as Income[];
+};
+
+export const copyIncomesFromPreviousMonth = async (
+  userId: string,
+  fromYearMonth: number,
+  toYearMonth: number
+) => {
+  // Hole Einnahmen vom Quellmonat
+  const sourceIncomes = await getIncomesForMonth(userId, fromYearMonth);
+
+  // Kopiere jede Einnahme zum Zielmonat
+  const copyPromises = sourceIncomes.map(async (income) => {
+    const newIncome: Omit<Income, 'id'> = {
+      name: income.name,
+      amount: income.amount,
+      yearMonth: toYearMonth,
+      userId: userId
+    };
+    return addIncome(newIncome);
+  });
+
+  await Promise.all(copyPromises);
+  return sourceIncomes.length; // Anzahl der kopierten Einnahmen
+};

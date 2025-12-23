@@ -33,37 +33,14 @@ const Analytics: React.FC = () => {
     loadData();
   }, [user, selectedMonth, selectedYear]);
 
+  const selectedYearMonth = selectedYear * 100 + (selectedMonth + 1); // YYYYMM
+
   const totalIncome = incomes
-    .filter((income) => {
-      const selectedYearMonth = selectedYear * 100 + (selectedMonth + 1); // YYYYMM
-
-      // Prüfe zuerst spezifische Monate
-      if (income.specificMonths && income.specificMonths.length > 0) {
-        return income.specificMonths.includes(selectedYearMonth);
-      }
-
-      // Sonst prüfe wiederkehrende Monate
-      return !income.months || income.months.includes(selectedMonth + 1);
-    })
+    .filter((income) => income.yearMonth === selectedYearMonth)
     .reduce((sum, income) => sum + income.amount, 0);
 
   const monthlyFixedCosts = fixedCosts
-    .filter((cost) => {
-      const currentYearMonth = selectedYear * 100 + (selectedMonth + 1); // YYYYMM
-
-      // Neues Format: yearMonth (monatsspezifisch)
-      if (cost.yearMonth) {
-        return cost.yearMonth === currentYearMonth;
-      }
-
-      // Legacy: Prüfe spezifische Monate
-      if (cost.specificMonths && cost.specificMonths.length > 0) {
-        return cost.specificMonths.includes(currentYearMonth);
-      }
-
-      // Legacy: Prüfe wiederkehrende Monate
-      return !cost.months || cost.months.includes(selectedMonth + 1);
-    })
+    .filter((cost) => cost.yearMonth === selectedYearMonth)
     .reduce((sum, cost) => sum + cost.amount, 0);
 
   const sortExpenses = (expenseList: Expense[]) => {
@@ -130,34 +107,13 @@ const Analytics: React.FC = () => {
 
         // Fixkosten für diesen Monat
         const monthFixedCosts = fixedCosts
-          .filter((cost) => {
-            // Neues Format: yearMonth (monatsspezifisch)
-            if (cost.yearMonth) {
-              return cost.yearMonth === yearMonth;
-            }
-
-            // Legacy: Prüfe spezifische Monate
-            if (cost.specificMonths && cost.specificMonths.length > 0) {
-              return cost.specificMonths.includes(yearMonth);
-            }
-
-            // Legacy: Prüfe wiederkehrende Monate
-            return !cost.months || cost.months.includes(month);
-          })
+          .filter((cost) => cost.yearMonth === yearMonth)
           .reduce((sum, cost) => sum + cost.amount, 0);
         yearFixedCosts += monthFixedCosts;
 
         // Einnahmen für diesen Monat
         const monthIncomes = incomes
-          .filter((income) => {
-            // Prüfe zuerst spezifische Monate
-            if (income.specificMonths && income.specificMonths.length > 0) {
-              return income.specificMonths.includes(yearMonth);
-            }
-
-            // Sonst prüfe wiederkehrende Monate
-            return !income.months || income.months.includes(month);
-          })
+          .filter((income) => income.yearMonth === yearMonth)
           .reduce((sum, income) => sum + income.amount, 0);
         yearTotalIncome += monthIncomes;
       });

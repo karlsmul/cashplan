@@ -13,9 +13,7 @@ export interface FixedCost {
   id: string;
   name: string;
   amount: number;
-  yearMonth?: number; // YYYYMM - Monatsspezifische Fixkosten (z.B. 202601 für Januar 2026)
-  months?: number[]; // 1-12, für wiederkehrende Fixkosten (Legacy)
-  specificMonths?: number[]; // YYYYMM (z.B. 202601 für Januar 2026), für einmalige Fixkosten (Legacy)
+  yearMonth: number; // YYYYMM - Jede Fixkosten gehört zu genau einem Monat (z.B. 202601 für Januar 2026)
   paidMonths?: number[]; // Monate, in denen die Kosten bereits bezahlt wurden (Format: YYYYMM als number, z.B. 202412)
   userId: string;
 }
@@ -24,8 +22,7 @@ export interface Income {
   id: string;
   name: string;
   amount: number;
-  months?: number[]; // 1-12, für wiederkehrende Einnahmen
-  specificMonths?: number[]; // YYYYMM (z.B. 202601 für Januar 2026), für einmalige Einnahmen
+  yearMonth: number; // YYYYMM - Jede Einnahme gehört zu genau einem Monat (z.B. 202601 für Januar 2026)
   userId: string;
 }
 
