@@ -13,8 +13,8 @@ import { getWeeksInMonth, formatCurrency, getMonthName, calculateTrend } from '.
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [currentDate] = useState(new Date());
-  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
-  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(0); // Januar
+  const [selectedYear, setSelectedYear] = useState(2026);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);

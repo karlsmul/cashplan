@@ -7,8 +7,8 @@ import { formatCurrency, getMonthName } from '../utils/dateUtils';
 const Analytics: React.FC = () => {
   const { user } = useAuth();
   const currentYear = new Date().getFullYear();
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState(0); // Januar
+  const [selectedYear, setSelectedYear] = useState(2026);
   const [alltagSortBy, setAlltagSortBy] = useState<'date' | 'amount-desc' | 'amount-asc'>('date');
   const [sonderpostenSortBy, setSonderpostenSortBy] = useState<'date' | 'amount-desc' | 'amount-asc'>('date');
 

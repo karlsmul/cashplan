@@ -23,8 +23,8 @@ const Settings: React.FC = () => {
   const [incomes, setIncomes] = useState<Income[]>([]);
 
   // Monatswähler
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(0); // Januar
+  const [selectedYear, setSelectedYear] = useState(2026);
   const selectedYearMonth = selectedYear * 100 + (selectedMonth + 1);
 
   const [newFixedCost, setNewFixedCost] = useState({ name: '', amount: '' });
@@ -37,7 +37,7 @@ const Settings: React.FC = () => {
 
   // Sortierung
   const [incomeSortBy, setIncomeSortBy] = useState<'name' | 'amount-desc' | 'amount-asc'>('name');
-  const [fixedCostSortBy, setFixedCostSortBy] = useState<'name' | 'amount-desc' | 'amount-asc'>('name');
+  const [fixedCostSortBy, setFixedCostSortBy] = useState<'name' | 'amount-desc' | 'amount-asc'>('amount-desc');
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
