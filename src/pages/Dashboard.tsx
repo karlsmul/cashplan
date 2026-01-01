@@ -8,7 +8,7 @@ import {
 } from '../services/firestore';
 import ExpenseForm from '../components/ExpenseForm';
 import WeekView from '../components/WeekView';
-import { getWeeksInMonth, formatCurrency, getMonthName, calculateTrend } from '../utils/dateUtils';
+import { getWeeksInMonth, formatCurrency, getMonthName } from '../utils/dateUtils';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -60,9 +60,12 @@ const Dashboard: React.FC = () => {
   // Nur Trend berechnen wenn aktueller Monat ausgewählt
   const isCurrentMonth = selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
   const daysElapsed = isCurrentMonth ? currentDate.getDate() : daysInMonth;
-  const expenseAmounts = expenses.map((e) => e.amount);
-  const trend = calculateTrend(expenseAmounts, daysElapsed, daysInMonth);
-  const projectedBalance = totalIncome - monthlyFixedCosts - trend;
+
+  // Neue Trend-Berechnung: 200€ pro verbleibende Woche
+  const daysRemaining = daysInMonth - daysElapsed;
+  const projectedRemainingExpenses = (200 / 7) * daysRemaining;
+  const projectedTotalExpenses = totalExpenses + projectedRemainingExpenses;
+  const projectedBalance = totalIncome - monthlyFixedCosts - projectedTotalExpenses;
 
   const monthNames = [
     'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -148,12 +151,13 @@ const Dashboard: React.FC = () => {
       <div className="card mb-8 bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/30">
         <h3 className="text-xl font-bold text-purple-300 mb-2">Trend-Prognose</h3>
         <p className="text-sm text-white/70 mb-4">
-          Basierend auf den bisherigen {daysElapsed} Tagen von {daysInMonth} Tagen
+          Bisher {daysElapsed} von {daysInMonth} Tagen | Noch {daysRemaining} Tage | Prognose: {formatCurrency((200 / 7) * daysRemaining)} (ca. {formatCurrency(200 / 7)}/Tag)
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <p className="text-sm text-white/60">Voraussichtliche Gesamtausgaben</p>
-            <p className="text-2xl font-bold text-purple-400">{formatCurrency(trend)}</p>
+            <p className="text-sm text-white/60">Voraussichtliche Gesamtausgaben am Monatsende</p>
+            <p className="text-2xl font-bold text-purple-400">{formatCurrency(projectedTotalExpenses)}</p>
+            <p className="text-xs text-white/50 mt-1">Bereits ausgegeben: {formatCurrency(totalExpenses)}</p>
           </div>
           <div>
             <p className="text-sm text-white/60">Prognostizierte Bilanz am Monatsende</p>
