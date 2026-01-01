@@ -67,6 +67,13 @@ const Dashboard: React.FC = () => {
   const projectedTotalExpenses = totalExpenses + projectedRemainingExpenses;
   const projectedBalance = totalIncome - monthlyFixedCosts - projectedTotalExpenses;
 
+  // Berechnung: Maximale Wochenausgaben und benötigte Einsparungen
+  const availableBudget = totalIncome - monthlyFixedCosts; // Verfügbar nach Fixkosten
+  const remainingBudget = availableBudget - totalExpenses; // Was noch übrig ist
+  const remainingWeeks = daysRemaining / 7; // Verbleibende Wochen als Dezimalzahl
+  const maxWeeklySpending = remainingWeeks > 0 ? remainingBudget / remainingWeeks : 0; // Max pro Woche
+  const weeklySavingsNeeded = 200 - maxWeeklySpending; // Differenz zu aktuellen 200€/Woche
+
   const monthNames = [
     'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
     'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
@@ -153,7 +160,7 @@ const Dashboard: React.FC = () => {
         <p className="text-sm text-white/70 mb-4">
           Bisher {daysElapsed} von {daysInMonth} Tagen | Noch {daysRemaining} Tage | Prognose: {formatCurrency((200 / 7) * daysRemaining)} (ca. {formatCurrency(200 / 7)}/Tag)
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <p className="text-sm text-white/60">Voraussichtliche Gesamtausgaben am Monatsende</p>
             <p className="text-2xl font-bold text-purple-400">{formatCurrency(projectedTotalExpenses)}</p>
@@ -163,6 +170,24 @@ const Dashboard: React.FC = () => {
             <p className="text-sm text-white/60">Prognostizierte Bilanz am Monatsende</p>
             <p className={`text-2xl font-bold ${projectedBalance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
               {formatCurrency(projectedBalance)}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-white/60">Max. Ausgaben pro Woche (für ±0)</p>
+            <p className={`text-2xl font-bold ${maxWeeklySpending >= 200 ? 'text-green-400' : 'text-orange-400'}`}>
+              {formatCurrency(maxWeeklySpending)}
+            </p>
+            <p className="text-xs text-white/50 mt-1">
+              {maxWeeklySpending >= 0 ? `${formatCurrency(maxWeeklySpending / 7)}/Tag` : 'Budget überschritten'}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-white/60">Benötigte Einsparung pro Woche</p>
+            <p className={`text-2xl font-bold ${weeklySavingsNeeded > 0 ? 'text-red-400' : 'text-green-400'}`}>
+              {weeklySavingsNeeded > 0 ? formatCurrency(weeklySavingsNeeded) : formatCurrency(0)}
+            </p>
+            <p className="text-xs text-white/50 mt-1">
+              {weeklySavingsNeeded > 0 ? 'Sparen erforderlich' : 'Kein Sparen nötig'}
             </p>
           </div>
         </div>
