@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { Expense, FixedCost, Income, ExpenseCategory } from '../types';
-import { getExpenses, getFixedCosts, getIncomes } from '../services/firestore';
+import { Expense, FixedCost, Income, ExpenseCategory, KeywordFilter } from '../types';
+import {
+  getExpenses,
+  getFixedCosts,
+  getIncomes,
+  subscribeToKeywordFilters,
+  addKeywordFilter,
+  updateKeywordFilter,
+  deleteKeywordFilter
+} from '../services/firestore';
 import { formatCurrency, getMonthName } from '../utils/dateUtils';
 
 const Analytics: React.FC = () => {
@@ -15,6 +23,11 @@ const Analytics: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
+  const [keywordFilters, setKeywordFilters] = useState<KeywordFilter[]>([]);
+  const [newKeyword, setNewKeyword] = useState('');
+  const [editingKeyword, setEditingKeyword] = useState<KeywordFilter | null>(null);
+  const [editKeywordText, setEditKeywordText] = useState('');
+  const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -33,6 +46,12 @@ const Analytics: React.FC = () => {
 
     loadData();
   }, [user, selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = subscribeToKeywordFilters(user.uid, setKeywordFilters);
+    return () => unsubscribe();
+  }, [user]);
 
   const selectedYearMonth = selectedYear * 100 + (selectedMonth + 1); // YYYYMM
 
@@ -67,6 +86,59 @@ const Analytics: React.FC = () => {
   const totalVariableExpenses = totalAlltagExpenses + totalSonderpostenExpenses;
 
   const balance = totalIncome - monthlyFixedCosts - totalVariableExpenses;
+
+  // Keyword Filter Handlers
+  const handleAddKeyword = async () => {
+    if (!user || !newKeyword.trim()) return;
+    try {
+      await addKeywordFilter({
+        keyword: newKeyword.trim(),
+        userId: user.uid
+      });
+      setNewKeyword('');
+    } catch (error) {
+      console.error('Error adding keyword:', error);
+    }
+  };
+
+  const handleEditKeyword = (filter: KeywordFilter) => {
+    setEditingKeyword(filter);
+    setEditKeywordText(filter.keyword);
+  };
+
+  const handleSaveKeyword = async () => {
+    if (!editingKeyword || !editKeywordText.trim()) return;
+    try {
+      await updateKeywordFilter(editingKeyword.id, { keyword: editKeywordText.trim() });
+      setEditingKeyword(null);
+      setEditKeywordText('');
+    } catch (error) {
+      console.error('Error updating keyword:', error);
+    }
+  };
+
+  const handleDeleteKeyword = async (filterId: string) => {
+    if (!confirm('Möchten Sie dieses Schlagwort wirklich löschen?')) return;
+    try {
+      await deleteKeywordFilter(filterId);
+      if (selectedKeyword === filterId) {
+        setSelectedKeyword(null);
+      }
+    } catch (error) {
+      console.error('Error deleting keyword:', error);
+    }
+  };
+
+  // Filter expenses by selected keyword
+  const keywordExpenses = selectedKeyword
+    ? expenses.filter((expense) => {
+        const filter = keywordFilters.find(f => f.id === selectedKeyword);
+        if (!filter) return false;
+        return expense.description.toLowerCase().includes(filter.keyword.toLowerCase());
+      })
+    : [];
+
+  const keywordExpensesTotal = keywordExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   const loadYearExpenses = async () => {
     if (!user) return [];
@@ -287,6 +359,147 @@ const Analytics: React.FC = () => {
               Gesamt: {formatCurrency(totalSonderpostenExpenses)}
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Keyword Filter Section */}
+      <h2 className="text-3xl font-bold mb-6 mt-12 text-purple-300">Ausgaben nach Schlagworten</h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        {/* Keyword Management */}
+        <div className="card">
+          <h3 className="text-xl font-bold mb-4 text-cyan-300">Schlagworte verwalten</h3>
+
+          {/* Add Keyword */}
+          <div className="mb-4">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newKeyword}
+                onChange={(e) => setNewKeyword(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleAddKeyword()}
+                className="input flex-1"
+                placeholder="Neues Schlagwort eingeben..."
+              />
+              <button
+                onClick={handleAddKeyword}
+                className="btn-primary"
+                disabled={!newKeyword.trim()}
+              >
+                + Hinzufügen
+              </button>
+            </div>
+          </div>
+
+          {/* Keyword List */}
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {keywordFilters.map((filter) => (
+              <div key={filter.id}>
+                {editingKeyword?.id === filter.id ? (
+                  <div className="bg-white/10 rounded-lg p-3 space-y-2">
+                    <input
+                      type="text"
+                      value={editKeywordText}
+                      onChange={(e) => setEditKeywordText(e.target.value)}
+                      className="input w-full"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={handleSaveKeyword} className="btn-primary flex-1 text-sm">
+                        ✓ Speichern
+                      </button>
+                      <button
+                        onClick={() => setEditingKeyword(null)}
+                        className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm"
+                      >
+                        Abbrechen
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className={`flex items-center justify-between rounded-lg p-3 cursor-pointer transition-all ${
+                      selectedKeyword === filter.id
+                        ? 'bg-cyan-500/20 border-2 border-cyan-500/50'
+                        : 'bg-white/5 border-2 border-transparent hover:border-white/20'
+                    }`}
+                    onClick={() => setSelectedKeyword(filter.id)}
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium">{filter.keyword}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditKeyword(filter);
+                        }}
+                        className="text-blue-400 hover:text-blue-300"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteKeyword(filter.id);
+                        }}
+                        className="text-red-400 hover:text-red-300"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            {keywordFilters.length === 0 && (
+              <p className="text-white/60 text-center py-8">
+                Noch keine Schlagworte gespeichert
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Keyword Results */}
+        <div className="card">
+          <h3 className="text-xl font-bold mb-4 text-cyan-300">
+            Gefundene Ausgaben {selectedKeyword && `(${keywordExpenses.length})`}
+          </h3>
+
+          {selectedKeyword ? (
+            <>
+              <div className="space-y-2 max-h-96 overflow-y-auto mb-4">
+                {keywordExpenses.map((expense) => (
+                  <div
+                    key={expense.id}
+                    className="flex items-center justify-between bg-white/5 rounded-lg p-3"
+                  >
+                    <div>
+                      <p className="font-medium">{expense.description}</p>
+                      <p className="text-xs text-white/60">
+                        {new Date(expense.date).toLocaleDateString('de-DE')} - {expense.category}
+                      </p>
+                    </div>
+                    <p className="font-bold text-cyan-400">{formatCurrency(expense.amount)}</p>
+                  </div>
+                ))}
+                {keywordExpenses.length === 0 && (
+                  <p className="text-white/60 text-center py-8">
+                    Keine Ausgaben mit diesem Schlagwort gefunden
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-white/20">
+                <p className="text-right text-xl font-bold text-cyan-400">
+                  Gesamt: {formatCurrency(keywordExpensesTotal)}
+                </p>
+              </div>
+            </>
+          ) : (
+            <p className="text-white/60 text-center py-8">
+              Wählen Sie ein Schlagwort aus, um passende Ausgaben zu sehen
+            </p>
+          )}
         </div>
       </div>
 

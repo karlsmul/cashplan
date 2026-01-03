@@ -64,3 +64,10 @@ export interface YearBalance {
   balance: number;
   monthlyBalances: MonthBalance[];
 }
+
+export interface KeywordFilter {
+  id: string;
+  keyword: string;
+  userId: string;
+  createdAt?: Date;
+}

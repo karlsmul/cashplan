@@ -11,7 +11,7 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Expense, FixedCost, Income } from '../types';
+import { Expense, FixedCost, Income, KeywordFilter } from '../types';
 
 // Expenses
 export const addExpense = async (expense: Omit<Expense, 'id'>) => {
@@ -292,4 +292,46 @@ export const copyIncomesFromPreviousMonth = async (
 
   await Promise.all(copyPromises);
   return sourceIncomes.length; // Anzahl der kopierten Einnahmen
+};
+
+// Keyword Filters
+export const addKeywordFilter = async (filter: Omit<KeywordFilter, 'id'>) => {
+  const filtersRef = collection(db, 'keywordFilters');
+  const docRef = await addDoc(filtersRef, filter);
+  return docRef.id;
+};
+
+export const getKeywordFilters = async (userId: string) => {
+  const filtersRef = collection(db, 'keywordFilters');
+  const q = query(filtersRef, where('userId', '==', userId));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  })) as KeywordFilter[];
+};
+
+export const updateKeywordFilter = async (filterId: string, updates: Partial<KeywordFilter>) => {
+  const filterRef = doc(db, 'keywordFilters', filterId);
+  await updateDoc(filterRef, updates);
+};
+
+export const deleteKeywordFilter = async (filterId: string) => {
+  await deleteDoc(doc(db, 'keywordFilters', filterId));
+};
+
+export const subscribeToKeywordFilters = (
+  userId: string,
+  callback: (filters: KeywordFilter[]) => void
+) => {
+  const filtersRef = collection(db, 'keywordFilters');
+  const q = query(filtersRef, where('userId', '==', userId));
+
+  return onSnapshot(q, (snapshot) => {
+    const filters = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as KeywordFilter[];
+    callback(filters);
+  });
 };
