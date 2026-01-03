@@ -27,7 +27,7 @@ const Analytics: React.FC = () => {
   const [newKeyword, setNewKeyword] = useState('');
   const [editingKeyword, setEditingKeyword] = useState<KeywordFilter | null>(null);
   const [editKeywordText, setEditKeywordText] = useState('');
-  const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -121,20 +121,22 @@ const Analytics: React.FC = () => {
     if (!confirm('Möchten Sie dieses Schlagwort wirklich löschen?')) return;
     try {
       await deleteKeywordFilter(filterId);
-      if (selectedKeyword === filterId) {
-        setSelectedKeyword(null);
+      if (selectedKeywords.includes(filterId)) {
+        setSelectedKeywords(selectedKeywords.filter(id => id !== filterId));
       }
     } catch (error) {
       console.error('Error deleting keyword:', error);
     }
   };
 
-  // Filter expenses by selected keyword
-  const keywordExpenses = selectedKeyword
+  // Filter expenses by selected keywords (match ANY of the selected keywords)
+  const keywordExpenses = selectedKeywords.length > 0
     ? expenses.filter((expense) => {
-        const filter = keywordFilters.find(f => f.id === selectedKeyword);
-        if (!filter) return false;
-        return expense.description.toLowerCase().includes(filter.keyword.toLowerCase());
+        return selectedKeywords.some(selectedId => {
+          const filter = keywordFilters.find(f => f.id === selectedId);
+          if (!filter) return false;
+          return expense.description.toLowerCase().includes(filter.keyword.toLowerCase());
+        });
       })
     : [];
 
@@ -418,13 +420,20 @@ const Analytics: React.FC = () => {
                 ) : (
                   <div
                     className={`flex items-center justify-between rounded-lg p-3 cursor-pointer transition-all ${
-                      selectedKeyword === filter.id
+                      selectedKeywords.includes(filter.id)
                         ? 'bg-cyan-500/20 border-2 border-cyan-500/50'
                         : 'bg-white/5 border-2 border-transparent hover:border-white/20'
                     }`}
-                    onClick={() => setSelectedKeyword(filter.id)}
+                    onClick={() => {
+                      if (selectedKeywords.includes(filter.id)) {
+                        setSelectedKeywords(selectedKeywords.filter(id => id !== filter.id));
+                      } else {
+                        setSelectedKeywords([...selectedKeywords, filter.id]);
+                      }
+                    }}
                   >
-                    <div className="flex-1">
+                    <div className="flex-1 flex items-center gap-2">
+                      {selectedKeywords.includes(filter.id) && <span className="text-cyan-400">✓</span>}
                       <p className="font-medium">{filter.keyword}</p>
                     </div>
                     <div className="flex gap-2">
@@ -462,10 +471,10 @@ const Analytics: React.FC = () => {
         {/* Keyword Results */}
         <div className="card">
           <h3 className="text-xl font-bold mb-4 text-cyan-300">
-            Gefundene Ausgaben {selectedKeyword && `(${keywordExpenses.length})`}
+            Gefundene Ausgaben {selectedKeywords.length > 0 && `(${keywordExpenses.length})`}
           </h3>
 
-          {selectedKeyword ? (
+          {selectedKeywords.length > 0 ? (
             <>
               <div className="space-y-2 max-h-96 overflow-y-auto mb-4">
                 {keywordExpenses.map((expense) => (
@@ -497,7 +506,7 @@ const Analytics: React.FC = () => {
             </>
           ) : (
             <p className="text-white/60 text-center py-8">
-              Wählen Sie ein Schlagwort aus, um passende Ausgaben zu sehen
+              Wählen Sie ein oder mehrere Schlagworte aus, um passende Ausgaben zu sehen
             </p>
           )}
         </div>
