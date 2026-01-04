@@ -33,7 +33,7 @@ export const addExpense = async (expense: Omit<Expense, 'id'>): Promise<string> 
     });
     return docRef.id;
   } catch (error) {
-    handleFirestoreError(error, 'addExpense');
+    return handleFirestoreError(error, 'addExpense');
   }
 };
 
@@ -59,7 +59,7 @@ export const getExpenses = async (userId: string, month: number, year: number): 
 
     return expenses.sort((a, b) => b.date.getTime() - a.date.getTime());
   } catch (error) {
-    handleFirestoreError(error, 'getExpenses');
+    return handleFirestoreError(error, 'getExpenses');
   }
 };
 
@@ -120,7 +120,7 @@ export const addFixedCost = async (fixedCost: Omit<FixedCost, 'id'>): Promise<st
     const docRef = await addDoc(fixedCostsRef, fixedCost);
     return docRef.id;
   } catch (error) {
-    handleFirestoreError(error, 'addFixedCost');
+    return handleFirestoreError(error, 'addFixedCost');
   }
 };
 
@@ -135,7 +135,7 @@ export const getFixedCosts = async (userId: string): Promise<FixedCost[]> => {
       ...doc.data()
     })) as FixedCost[];
   } catch (error) {
-    handleFirestoreError(error, 'getFixedCosts');
+    return handleFirestoreError(error, 'getFixedCosts');
   }
 };
 
@@ -162,7 +162,7 @@ export const addIncome = async (income: Omit<Income, 'id'>): Promise<string> => 
     const docRef = await addDoc(incomesRef, income);
     return docRef.id;
   } catch (error) {
-    handleFirestoreError(error, 'addIncome');
+    return handleFirestoreError(error, 'addIncome');
   }
 };
 
@@ -177,7 +177,7 @@ export const getIncomes = async (userId: string): Promise<Income[]> => {
       ...doc.data()
     })) as Income[];
   } catch (error) {
-    handleFirestoreError(error, 'getIncomes');
+    return handleFirestoreError(error, 'getIncomes');
   }
 };
 
@@ -303,7 +303,7 @@ export const getFixedCostsForMonth = async (userId: string, yearMonth: number): 
       ...doc.data()
     })) as FixedCost[];
   } catch (error) {
-    handleFirestoreError(error, 'getFixedCostsForMonth');
+    return handleFirestoreError(error, 'getFixedCostsForMonth');
   }
 };
 
@@ -328,7 +328,7 @@ export const copyFixedCostsFromPreviousMonth = async (
     await Promise.all(copyPromises);
     return sourceCosts.length;
   } catch (error) {
-    handleFirestoreError(error, 'copyFixedCostsFromPreviousMonth');
+    return handleFirestoreError(error, 'copyFixedCostsFromPreviousMonth');
   }
 };
 
@@ -371,7 +371,7 @@ export const getIncomesForMonth = async (userId: string, yearMonth: number): Pro
       ...doc.data()
     })) as Income[];
   } catch (error) {
-    handleFirestoreError(error, 'getIncomesForMonth');
+    return handleFirestoreError(error, 'getIncomesForMonth');
   }
 };
 
@@ -396,7 +396,7 @@ export const copyIncomesFromPreviousMonth = async (
     await Promise.all(copyPromises);
     return sourceIncomes.length;
   } catch (error) {
-    handleFirestoreError(error, 'copyIncomesFromPreviousMonth');
+    return handleFirestoreError(error, 'copyIncomesFromPreviousMonth');
   }
 };
 
@@ -407,7 +407,7 @@ export const addKeywordFilter = async (filter: Omit<KeywordFilter, 'id'>): Promi
     const docRef = await addDoc(filtersRef, filter);
     return docRef.id;
   } catch (error) {
-    handleFirestoreError(error, 'addKeywordFilter');
+    return handleFirestoreError(error, 'addKeywordFilter');
   }
 };
 
@@ -421,7 +421,7 @@ export const getKeywordFilters = async (userId: string): Promise<KeywordFilter[]
       ...doc.data()
     })) as KeywordFilter[];
   } catch (error) {
-    handleFirestoreError(error, 'getKeywordFilters');
+    return handleFirestoreError(error, 'getKeywordFilters');
   }
 };
 
