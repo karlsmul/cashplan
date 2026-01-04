@@ -12,7 +12,7 @@ import {
   FirestoreError
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Expense, FixedCost, Income, KeywordFilter } from '../types';
+import { Expense, FixedCost, Income, KeywordFilter, UserSettings } from '../types';
 
 // Error-Handler für Firestore-Operationen
 const handleFirestoreError = (error: unknown, operation: string): never => {
@@ -462,6 +462,71 @@ export const subscribeToKeywordFilters = (
     (error) => {
       console.error('subscribeToKeywordFilters Fehler:', error);
       onError?.(new Error(`Fehler beim Laden der Keyword-Filter: ${error.message}`));
+    }
+  );
+};
+
+// User Settings
+const DEFAULT_WEEKLY_BUDGET = 200;
+
+export const getUserSettings = async (userId: string): Promise<UserSettings> => {
+  try {
+    const settingsRef = collection(db, 'userSettings');
+    const q = query(settingsRef, where('userId', '==', userId));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      // Erstelle Default-Settings
+      const defaultSettings: Omit<UserSettings, 'id'> = {
+        userId,
+        weeklyBudget: DEFAULT_WEEKLY_BUDGET
+      };
+      const docRef = await addDoc(settingsRef, defaultSettings);
+      return { id: docRef.id, ...defaultSettings };
+    }
+
+    const doc = snapshot.docs[0];
+    return { id: doc.id, ...doc.data() } as UserSettings;
+  } catch (error) {
+    return handleFirestoreError(error, 'getUserSettings');
+  }
+};
+
+export const updateUserSettings = async (settingsId: string, data: Partial<UserSettings>): Promise<void> => {
+  try {
+    await updateDoc(doc(db, 'userSettings', settingsId), data);
+  } catch (error) {
+    return handleFirestoreError(error, 'updateUserSettings');
+  }
+};
+
+export const subscribeToUserSettings = (
+  userId: string,
+  callback: (settings: UserSettings) => void,
+  onError?: (error: Error) => void
+) => {
+  const settingsRef = collection(db, 'userSettings');
+  const q = query(settingsRef, where('userId', '==', userId));
+
+  return onSnapshot(
+    q,
+    async (snapshot) => {
+      if (snapshot.empty) {
+        // Erstelle Default-Settings wenn keine vorhanden
+        const defaultSettings: Omit<UserSettings, 'id'> = {
+          userId,
+          weeklyBudget: DEFAULT_WEEKLY_BUDGET
+        };
+        const docRef = await addDoc(settingsRef, defaultSettings);
+        callback({ id: docRef.id, ...defaultSettings });
+      } else {
+        const doc = snapshot.docs[0];
+        callback({ id: doc.id, ...doc.data() } as UserSettings);
+      }
+    },
+    (error) => {
+      console.error('subscribeToUserSettings Fehler:', error);
+      onError?.(new Error(`Fehler beim Laden der Einstellungen: ${error.message}`));
     }
   );
 };

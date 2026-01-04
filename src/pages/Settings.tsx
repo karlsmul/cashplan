@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { FixedCost, Income } from '../types';
+import { FixedCost, Income, UserSettings } from '../types';
 import {
   addFixedCost,
   addIncome,
@@ -13,7 +13,9 @@ import {
   copyFixedCostsFromPreviousMonth,
   copyIncomesFromPreviousMonth,
   deleteAllExpenses,
-  deleteExpensesForMonth
+  deleteExpensesForMonth,
+  subscribeToUserSettings,
+  updateUserSettings
 } from '../services/firestore';
 import { formatCurrency, getMonthName } from '../utils/dateUtils';
 
@@ -21,6 +23,8 @@ const Settings: React.FC = () => {
   const { user } = useAuth();
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+  const [weeklyBudgetInput, setWeeklyBudgetInput] = useState('');
 
   // Monatswähler
   const [selectedMonth, setSelectedMonth] = useState(0); // Januar
@@ -55,12 +59,36 @@ const Settings: React.FC = () => {
 
     const unsubscribeFixedCosts = subscribeToFixedCosts(user.uid, setFixedCosts);
     const unsubscribeIncomes = subscribeToIncomes(user.uid, setIncomes);
+    const unsubscribeSettings = subscribeToUserSettings(user.uid, (settings) => {
+      setUserSettings(settings);
+      setWeeklyBudgetInput(settings.weeklyBudget.toString());
+    });
 
     return () => {
       unsubscribeFixedCosts();
       unsubscribeIncomes();
+      unsubscribeSettings();
     };
   }, [user]);
+
+  // Handler: Wochenlimit speichern
+  const handleSaveWeeklyBudget = async () => {
+    if (!userSettings) return;
+
+    const newBudget = parseFloat(weeklyBudgetInput);
+    if (isNaN(newBudget) || newBudget <= 0) {
+      setError('Bitte geben Sie einen gültigen Betrag ein.');
+      return;
+    }
+
+    try {
+      await updateUserSettings(userSettings.id, { weeklyBudget: newBudget });
+      setSuccess('Wochenlimit erfolgreich gespeichert!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: any) {
+      setError(error.message || 'Fehler beim Speichern des Wochenlimits.');
+    }
+  };
 
   // Handler: Fixkosten hinzufügen
   const handleAddFixedCost = async (e: React.FormEvent) => {
@@ -315,6 +343,40 @@ const Settings: React.FC = () => {
         >
           📋 Vormonat kopieren
         </button>
+      </div>
+
+      {/* Budget-Einstellungen */}
+      <div className="card mb-6 bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/20">
+        <h3 className="text-xl font-bold mb-4 text-yellow-300">💰 Wochenlimit</h3>
+        <p className="text-sm text-white/60 mb-4">
+          Wochenausgaben werden rot markiert, wenn sie diesen Betrag überschreiten.
+        </p>
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium mb-2">Betrag (€)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={weeklyBudgetInput}
+              onChange={(e) => setWeeklyBudgetInput(e.target.value)}
+              className="input w-full"
+              placeholder="200.00"
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={handleSaveWeeklyBudget}
+              className="btn-primary px-6"
+            >
+              Speichern
+            </button>
+          </div>
+        </div>
+        {userSettings && (
+          <p className="text-xs text-white/50 mt-2">
+            Aktuelles Limit: {formatCurrency(userSettings.weeklyBudget)}
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

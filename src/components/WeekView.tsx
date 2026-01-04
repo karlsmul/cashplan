@@ -8,9 +8,12 @@ interface WeekViewProps {
   startDate: Date;
   endDate: Date;
   expenses: Expense[];
+  weeklyBudget?: number;
 }
 
-const WeekView: React.FC<WeekViewProps> = ({ weekNumber, startDate, endDate, expenses }) => {
+const DEFAULT_WEEKLY_BUDGET = 200;
+
+const WeekView: React.FC<WeekViewProps> = ({ weekNumber, startDate, endDate, expenses, weeklyBudget = DEFAULT_WEEKLY_BUDGET }) => {
   const [expanded, setExpanded] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -108,7 +111,7 @@ const WeekView: React.FC<WeekViewProps> = ({ weekNumber, startDate, endDate, exp
         </div>
 
         <div className="text-right mr-4">
-          <p className={`text-2xl font-bold ${weekTotal > 200 ? 'text-red-400' : 'text-white'}`}>
+          <p className={`text-2xl font-bold ${weekTotal > weeklyBudget ? 'text-red-400' : 'text-white'}`}>
             {formatCurrency(weekTotal)}
           </p>
           <p className="text-sm text-white/60">

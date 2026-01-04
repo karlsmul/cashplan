@@ -71,3 +71,9 @@ export interface KeywordFilter {
   userId: string;
   createdAt?: Date;
 }
+
+export interface UserSettings {
+  id: string;
+  userId: string;
+  weeklyBudget: number; // Wochenlimit in Euro (default: 200)
+}

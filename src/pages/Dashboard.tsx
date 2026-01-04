@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Expense, FixedCost, Income } from '../types';
+import { Expense, FixedCost, Income, UserSettings } from '../types';
 import {
   subscribeToExpenses,
   subscribeToFixedCosts,
-  subscribeToIncomes
+  subscribeToIncomes,
+  subscribeToUserSettings
 } from '../services/firestore';
 import ExpenseForm from '../components/ExpenseForm';
 import WeekView from '../components/WeekView';
@@ -18,8 +19,12 @@ const Dashboard: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const DEFAULT_WEEKLY_BUDGET = 200;
+  const weeklyBudget = userSettings?.weeklyBudget ?? DEFAULT_WEEKLY_BUDGET;
 
   const weeks = getWeeksInMonth(selectedYear, selectedMonth);
   const selectedYearMonth = selectedYear * 100 + (selectedMonth + 1);
@@ -32,7 +37,7 @@ const Dashboard: React.FC = () => {
     let loadedCount = 0;
     const checkLoaded = () => {
       loadedCount++;
-      if (loadedCount >= 3) setLoading(false);
+      if (loadedCount >= 4) setLoading(false);
     };
 
     const handleError = (err: Error) => {
@@ -60,10 +65,17 @@ const Dashboard: React.FC = () => {
       handleError
     );
 
+    const unsubscribeSettings = subscribeToUserSettings(
+      user.uid,
+      (settings) => { setUserSettings(settings); checkLoaded(); },
+      handleError
+    );
+
     return () => {
       unsubscribeExpenses();
       unsubscribeFixedCosts();
       unsubscribeIncomes();
+      unsubscribeSettings();
     };
   }, [user, selectedMonth, selectedYear]);
 
@@ -86,9 +98,9 @@ const Dashboard: React.FC = () => {
   const isCurrentMonth = selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
   const daysElapsed = isCurrentMonth ? currentDate.getDate() : daysInMonth;
 
-  // Neue Trend-Berechnung: 200€ pro verbleibende Woche
+  // Trend-Berechnung basierend auf Wochenlimit
   const daysRemaining = daysInMonth - daysElapsed;
-  const projectedRemainingExpenses = (200 / 7) * daysRemaining;
+  const projectedRemainingExpenses = (weeklyBudget / 7) * daysRemaining;
   const projectedTotalExpenses = totalExpenses + projectedRemainingExpenses;
   const projectedBalance = totalIncome - monthlyFixedCosts - projectedTotalExpenses;
 
@@ -97,7 +109,7 @@ const Dashboard: React.FC = () => {
   const remainingBudget = availableBudget - totalExpenses; // Was noch übrig ist
   const remainingWeeks = daysRemaining / 7; // Verbleibende Wochen als Dezimalzahl
   const maxWeeklySpending = remainingWeeks > 0 ? remainingBudget / remainingWeeks : 0; // Max pro Woche
-  const weeklySavingsNeeded = 200 - maxWeeklySpending; // Differenz zu aktuellen 200€/Woche
+  const weeklySavingsNeeded = weeklyBudget - maxWeeklySpending; // Differenz zum Wochenlimit
 
   const monthNames = [
     'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -207,7 +219,7 @@ const Dashboard: React.FC = () => {
       <div className="card mb-8 bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/30">
         <h3 className="text-xl font-bold text-purple-300 mb-2">Trend-Prognose</h3>
         <p className="text-sm text-white/70 mb-4">
-          Bisher {daysElapsed} von {daysInMonth} Tagen | Noch {daysRemaining} Tage | Prognose: {formatCurrency((200 / 7) * daysRemaining)} (ca. {formatCurrency(200 / 7)}/Tag)
+          Bisher {daysElapsed} von {daysInMonth} Tagen | Noch {daysRemaining} Tage | Prognose: {formatCurrency((weeklyBudget / 7) * daysRemaining)} (ca. {formatCurrency(weeklyBudget / 7)}/Tag)
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
@@ -223,7 +235,7 @@ const Dashboard: React.FC = () => {
           </div>
           <div>
             <p className="text-sm text-white/60">Max. Ausgaben pro Woche (für ±0)</p>
-            <p className={`text-2xl font-bold ${maxWeeklySpending >= 200 ? 'text-green-400' : 'text-orange-400'}`}>
+            <p className={`text-2xl font-bold ${maxWeeklySpending >= weeklyBudget ? 'text-green-400' : 'text-orange-400'}`}>
               {formatCurrency(maxWeeklySpending)}
             </p>
             <p className="text-xs text-white/50 mt-1">
@@ -256,6 +268,7 @@ const Dashboard: React.FC = () => {
               startDate={week.start}
               endDate={week.end}
               expenses={weekExpenses}
+              weeklyBudget={weeklyBudget}
             />
           );
         })}
