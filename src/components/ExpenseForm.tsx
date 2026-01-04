@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ExpenseCategory } from '../types';
 import { addExpense } from '../services/firestore';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 
 const ExpenseForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
   const { user } = useAuth();

@@ -2,17 +2,78 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+## Build & Development Commands
 
-Cashplan ist eine geplante PWA/Web-App für Budget- & Finanzplanung.
+```bash
+npm run dev      # Start Vite dev server (port 3000, hot reload)
+npm run build    # TypeScript compile + Vite production build
+npm run preview  # Preview production build locally
+```
 
-## Current State
+## Architecture
 
-Repository enthält aktuell nur Assets:
-- `logo.png`, `logocashplan.png` - App-Logos
-- `LICENSE` - ISC-Lizenz
-- `README.md` - Projektbeschreibung
+**Stack**: React 19 + TypeScript + Vite + Tailwind CSS + Firebase (Auth + Firestore)
 
-## Next Steps
+### Key Directories
+- `src/pages/` - Full-screen route components (Dashboard, Analytics, Settings, Login)
+- `src/components/` - Reusable UI components
+- `src/contexts/` - React Context providers (AuthContext)
+- `src/services/` - Firebase SDK init (`firebase.ts`) and Firestore CRUD (`firestore.ts`)
+- `src/utils/` - Date formatting, currency, week calculations
+- `src/types/` - TypeScript interfaces
 
-Quellcode muss noch hinzugefügt werden.
+### Data Flow
+Firestore listeners (`onSnapshot`) → React state → UI re-render. All writes go through `firestore.ts` service functions with error handling.
+
+### Auth Architecture
+`AuthContext` wraps the app (in `main.tsx`), providing a single auth listener. Use `useAuth()` hook from `contexts/AuthContext` in components.
+
+### Routing
+React Router with 4 routes: `/` (Dashboard), `/analytics`, `/settings`, `/login`. Auth-gated in `App.tsx`.
+
+## Firestore Data Model
+
+**User isolation**: All collections filter by `userId` field.
+
+| Collection | Key Fields |
+|------------|------------|
+| `expenses` | amount, category ('Alltag'/'Sonderposten'), description, date (Timestamp) |
+| `fixedCosts` | name, amount, yearMonth (YYYYMM as number), paidMonths (array) |
+| `incomes` | name, amount, yearMonth |
+| `keywordFilters` | keyword, createdAt |
+
+**Month encoding**: Uses `YYYYMM` as number (e.g., `202601` for January 2026).
+
+**Offline-Persistenz**: Aktiviert via `enableIndexedDbPersistence()` in `firebase.ts`.
+
+## Environment Variables
+
+Required in `.env` (see `.env.example`):
+```
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID
+```
+
+## Deployment
+
+GitHub Actions (`.github/workflows/firebase-hosting.yml`) auto-deploys on push to `main`. Secrets stored in GitHub, injected as `.env` during build. Output in `dist/` deployed to Firebase Hosting.
+
+## Code Conventions
+
+- **Language**: German for UI text, variable names, and comments
+- **Locale**: de-DE formatting for dates and currency (EUR)
+- **TypeScript**: Strict mode enabled
+- **Components**: Functional components with hooks
+- **Styling**: Tailwind with glassmorphism patterns (backdrop-blur, gradients)
+- **Error Handling**: All Firestore operations wrapped in try/catch, subscribe functions have optional `onError` callback
+
+## PWA
+
+Configured via `vite-plugin-pwa`. Service worker handles caching:
+- Firebase API: NetworkFirst (7 days)
+- Google Fonts: CacheFirst (1 year)
+- Auto-updates in background

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import { Expense, FixedCost, Income } from '../types';
 import {
   subscribeToExpenses,
@@ -18,6 +18,8 @@ const Dashboard: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const weeks = getWeeksInMonth(selectedYear, selectedMonth);
   const selectedYearMonth = selectedYear * 100 + (selectedMonth + 1);
@@ -25,15 +27,38 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
+    setLoading(true);
+    setError(null);
+    let loadedCount = 0;
+    const checkLoaded = () => {
+      loadedCount++;
+      if (loadedCount >= 3) setLoading(false);
+    };
+
+    const handleError = (err: Error) => {
+      setError(err.message);
+      setLoading(false);
+    };
+
     const unsubscribeExpenses = subscribeToExpenses(
       user.uid,
       selectedMonth,
       selectedYear,
-      setExpenses
+      (data) => { setExpenses(data); checkLoaded(); },
+      handleError
     );
 
-    const unsubscribeFixedCosts = subscribeToFixedCosts(user.uid, setFixedCosts);
-    const unsubscribeIncomes = subscribeToIncomes(user.uid, setIncomes);
+    const unsubscribeFixedCosts = subscribeToFixedCosts(
+      user.uid,
+      (data) => { setFixedCosts(data); checkLoaded(); },
+      handleError
+    );
+
+    const unsubscribeIncomes = subscribeToIncomes(
+      user.uid,
+      (data) => { setIncomes(data); checkLoaded(); },
+      handleError
+    );
 
     return () => {
       unsubscribeExpenses();
@@ -78,6 +103,30 @@ const Dashboard: React.FC = () => {
     'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
     'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
   ];
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-purple-300">Daten werden geladen...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="card bg-gradient-to-br from-red-500/20 to-red-600/20 border-red-500/30">
+          <h3 className="text-xl font-bold text-red-300 mb-2">Fehler</h3>
+          <p className="text-red-400">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">

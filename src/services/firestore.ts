@@ -8,182 +8,262 @@ import {
   query,
   where,
   Timestamp,
-  onSnapshot
+  onSnapshot,
+  FirestoreError
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Expense, FixedCost, Income, KeywordFilter } from '../types';
 
+// Error-Handler für Firestore-Operationen
+const handleFirestoreError = (error: unknown, operation: string): never => {
+  const message = error instanceof FirestoreError
+    ? `Firestore-Fehler bei ${operation}: ${error.message}`
+    : `Fehler bei ${operation}: ${String(error)}`;
+  console.error(message, error);
+  throw new Error(message);
+};
+
 // Expenses
-export const addExpense = async (expense: Omit<Expense, 'id'>) => {
-  const expensesRef = collection(db, 'expenses');
-  const docRef = await addDoc(expensesRef, {
-    ...expense,
-    date: Timestamp.fromDate(expense.date)
-  });
-  return docRef.id;
+export const addExpense = async (expense: Omit<Expense, 'id'>): Promise<string> => {
+  try {
+    const expensesRef = collection(db, 'expenses');
+    const docRef = await addDoc(expensesRef, {
+      ...expense,
+      date: Timestamp.fromDate(expense.date)
+    });
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, 'addExpense');
+  }
 };
 
-export const getExpenses = async (userId: string, month: number, year: number) => {
-  const expensesRef = collection(db, 'expenses');
-  const startDate = new Date(year, month, 1);
-  const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+export const getExpenses = async (userId: string, month: number, year: number): Promise<Expense[]> => {
+  try {
+    const expensesRef = collection(db, 'expenses');
+    const startDate = new Date(year, month, 1);
+    const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
 
-  const q = query(
-    expensesRef,
-    where('userId', '==', userId),
-    where('date', '>=', Timestamp.fromDate(startDate)),
-    where('date', '<=', Timestamp.fromDate(endDate))
-  );
+    const q = query(
+      expensesRef,
+      where('userId', '==', userId),
+      where('date', '>=', Timestamp.fromDate(startDate)),
+      where('date', '<=', Timestamp.fromDate(endDate))
+    );
 
-  const snapshot = await getDocs(q);
-  const expenses = snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-    date: doc.data().date.toDate()
-  })) as Expense[];
-
-  // Sortierung im Client statt in Firestore (kein Index nötig)
-  return expenses.sort((a, b) => b.date.getTime() - a.date.getTime());
-};
-
-export const deleteExpense = async (expenseId: string) => {
-  await deleteDoc(doc(db, 'expenses', expenseId));
-};
-
-export const updateExpense = async (expenseId: string, data: Partial<Expense>) => {
-  await updateDoc(doc(db, 'expenses', expenseId), data);
-};
-
-export const deleteAllExpenses = async (userId: string) => {
-  const expensesRef = collection(db, 'expenses');
-  const q = query(expensesRef, where('userId', '==', userId));
-  const snapshot = await getDocs(q);
-
-  const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
-  await Promise.all(deletePromises);
-};
-
-export const deleteExpensesForMonth = async (userId: string, month: number, year: number) => {
-  const expensesRef = collection(db, 'expenses');
-  const startDate = new Date(year, month, 1);
-  const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
-
-  const q = query(
-    expensesRef,
-    where('userId', '==', userId),
-    where('date', '>=', Timestamp.fromDate(startDate)),
-    where('date', '<=', Timestamp.fromDate(endDate))
-  );
-
-  const snapshot = await getDocs(q);
-  const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
-  await Promise.all(deletePromises);
-};
-
-// Fixed Costs
-export const addFixedCost = async (fixedCost: Omit<FixedCost, 'id'>) => {
-  const fixedCostsRef = collection(db, 'fixedCosts');
-  const docRef = await addDoc(fixedCostsRef, fixedCost);
-  return docRef.id;
-};
-
-export const getFixedCosts = async (userId: string) => {
-  const fixedCostsRef = collection(db, 'fixedCosts');
-  const q = query(fixedCostsRef, where('userId', '==', userId));
-
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  })) as FixedCost[];
-};
-
-export const updateFixedCost = async (fixedCostId: string, data: Partial<FixedCost>) => {
-  await updateDoc(doc(db, 'fixedCosts', fixedCostId), data);
-};
-
-export const deleteFixedCost = async (fixedCostId: string) => {
-  await deleteDoc(doc(db, 'fixedCosts', fixedCostId));
-};
-
-// Incomes
-export const addIncome = async (income: Omit<Income, 'id'>) => {
-  const incomesRef = collection(db, 'incomes');
-  const docRef = await addDoc(incomesRef, income);
-  return docRef.id;
-};
-
-export const getIncomes = async (userId: string) => {
-  const incomesRef = collection(db, 'incomes');
-  const q = query(incomesRef, where('userId', '==', userId));
-
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  })) as Income[];
-};
-
-export const updateIncome = async (incomeId: string, data: Partial<Income>) => {
-  await updateDoc(doc(db, 'incomes', incomeId), data);
-};
-
-export const deleteIncome = async (incomeId: string) => {
-  await deleteDoc(doc(db, 'incomes', incomeId));
-};
-
-// Real-time listeners
-export const subscribeToExpenses = (
-  userId: string,
-  month: number,
-  year: number,
-  callback: (expenses: Expense[]) => void
-) => {
-  const expensesRef = collection(db, 'expenses');
-  const startDate = new Date(year, month, 1);
-  const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
-
-  const q = query(
-    expensesRef,
-    where('userId', '==', userId),
-    where('date', '>=', Timestamp.fromDate(startDate)),
-    where('date', '<=', Timestamp.fromDate(endDate))
-  );
-
-  return onSnapshot(q, (snapshot) => {
+    const snapshot = await getDocs(q);
     const expenses = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       date: doc.data().date.toDate()
     })) as Expense[];
 
-    // Sortierung im Client
-    const sortedExpenses = expenses.sort((a, b) => b.date.getTime() - a.date.getTime());
-    callback(sortedExpenses);
-  });
+    return expenses.sort((a, b) => b.date.getTime() - a.date.getTime());
+  } catch (error) {
+    handleFirestoreError(error, 'getExpenses');
+  }
+};
+
+export const deleteExpense = async (expenseId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'expenses', expenseId));
+  } catch (error) {
+    handleFirestoreError(error, 'deleteExpense');
+  }
+};
+
+export const updateExpense = async (expenseId: string, data: Partial<Expense>): Promise<void> => {
+  try {
+    await updateDoc(doc(db, 'expenses', expenseId), data);
+  } catch (error) {
+    handleFirestoreError(error, 'updateExpense');
+  }
+};
+
+export const deleteAllExpenses = async (userId: string): Promise<void> => {
+  try {
+    const expensesRef = collection(db, 'expenses');
+    const q = query(expensesRef, where('userId', '==', userId));
+    const snapshot = await getDocs(q);
+
+    const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(deletePromises);
+  } catch (error) {
+    handleFirestoreError(error, 'deleteAllExpenses');
+  }
+};
+
+export const deleteExpensesForMonth = async (userId: string, month: number, year: number): Promise<void> => {
+  try {
+    const expensesRef = collection(db, 'expenses');
+    const startDate = new Date(year, month, 1);
+    const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+    const q = query(
+      expensesRef,
+      where('userId', '==', userId),
+      where('date', '>=', Timestamp.fromDate(startDate)),
+      where('date', '<=', Timestamp.fromDate(endDate))
+    );
+
+    const snapshot = await getDocs(q);
+    const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(deletePromises);
+  } catch (error) {
+    handleFirestoreError(error, 'deleteExpensesForMonth');
+  }
+};
+
+// Fixed Costs
+export const addFixedCost = async (fixedCost: Omit<FixedCost, 'id'>): Promise<string> => {
+  try {
+    const fixedCostsRef = collection(db, 'fixedCosts');
+    const docRef = await addDoc(fixedCostsRef, fixedCost);
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, 'addFixedCost');
+  }
+};
+
+export const getFixedCosts = async (userId: string): Promise<FixedCost[]> => {
+  try {
+    const fixedCostsRef = collection(db, 'fixedCosts');
+    const q = query(fixedCostsRef, where('userId', '==', userId));
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as FixedCost[];
+  } catch (error) {
+    handleFirestoreError(error, 'getFixedCosts');
+  }
+};
+
+export const updateFixedCost = async (fixedCostId: string, data: Partial<FixedCost>): Promise<void> => {
+  try {
+    await updateDoc(doc(db, 'fixedCosts', fixedCostId), data);
+  } catch (error) {
+    handleFirestoreError(error, 'updateFixedCost');
+  }
+};
+
+export const deleteFixedCost = async (fixedCostId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'fixedCosts', fixedCostId));
+  } catch (error) {
+    handleFirestoreError(error, 'deleteFixedCost');
+  }
+};
+
+// Incomes
+export const addIncome = async (income: Omit<Income, 'id'>): Promise<string> => {
+  try {
+    const incomesRef = collection(db, 'incomes');
+    const docRef = await addDoc(incomesRef, income);
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, 'addIncome');
+  }
+};
+
+export const getIncomes = async (userId: string): Promise<Income[]> => {
+  try {
+    const incomesRef = collection(db, 'incomes');
+    const q = query(incomesRef, where('userId', '==', userId));
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Income[];
+  } catch (error) {
+    handleFirestoreError(error, 'getIncomes');
+  }
+};
+
+export const updateIncome = async (incomeId: string, data: Partial<Income>): Promise<void> => {
+  try {
+    await updateDoc(doc(db, 'incomes', incomeId), data);
+  } catch (error) {
+    handleFirestoreError(error, 'updateIncome');
+  }
+};
+
+export const deleteIncome = async (incomeId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'incomes', incomeId));
+  } catch (error) {
+    handleFirestoreError(error, 'deleteIncome');
+  }
+};
+
+// Real-time listeners mit Error-Callback
+export const subscribeToExpenses = (
+  userId: string,
+  month: number,
+  year: number,
+  callback: (expenses: Expense[]) => void,
+  onError?: (error: Error) => void
+) => {
+  const expensesRef = collection(db, 'expenses');
+  const startDate = new Date(year, month, 1);
+  const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+  const q = query(
+    expensesRef,
+    where('userId', '==', userId),
+    where('date', '>=', Timestamp.fromDate(startDate)),
+    where('date', '<=', Timestamp.fromDate(endDate))
+  );
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const expenses = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        date: doc.data().date.toDate()
+      })) as Expense[];
+
+      const sortedExpenses = expenses.sort((a, b) => b.date.getTime() - a.date.getTime());
+      callback(sortedExpenses);
+    },
+    (error) => {
+      console.error('subscribeToExpenses Fehler:', error);
+      onError?.(new Error(`Fehler beim Laden der Ausgaben: ${error.message}`));
+    }
+  );
 };
 
 export const subscribeToFixedCosts = (
   userId: string,
-  callback: (fixedCosts: FixedCost[]) => void
+  callback: (fixedCosts: FixedCost[]) => void,
+  onError?: (error: Error) => void
 ) => {
   const fixedCostsRef = collection(db, 'fixedCosts');
   const q = query(fixedCostsRef, where('userId', '==', userId));
 
-  return onSnapshot(q, (snapshot) => {
-    const fixedCosts = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as FixedCost[];
-    callback(fixedCosts);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const fixedCosts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as FixedCost[];
+      callback(fixedCosts);
+    },
+    (error) => {
+      console.error('subscribeToFixedCosts Fehler:', error);
+      onError?.(new Error(`Fehler beim Laden der Fixkosten: ${error.message}`));
+    }
+  );
 };
 
-// Monatsspezifische Fixkosten
 export const subscribeToFixedCostsForMonth = (
   userId: string,
   yearMonth: number,
-  callback: (fixedCosts: FixedCost[]) => void
+  callback: (fixedCosts: FixedCost[]) => void,
+  onError?: (error: Error) => void
 ) => {
   const fixedCostsRef = collection(db, 'fixedCosts');
   const q = query(
@@ -192,146 +272,196 @@ export const subscribeToFixedCostsForMonth = (
     where('yearMonth', '==', yearMonth)
   );
 
-  return onSnapshot(q, (snapshot) => {
-    const fixedCosts = snapshot.docs.map(doc => ({
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const fixedCosts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as FixedCost[];
+      callback(fixedCosts);
+    },
+    (error) => {
+      console.error('subscribeToFixedCostsForMonth Fehler:', error);
+      onError?.(new Error(`Fehler beim Laden der monatlichen Fixkosten: ${error.message}`));
+    }
+  );
+};
+
+export const getFixedCostsForMonth = async (userId: string, yearMonth: number): Promise<FixedCost[]> => {
+  try {
+    const fixedCostsRef = collection(db, 'fixedCosts');
+    const q = query(
+      fixedCostsRef,
+      where('userId', '==', userId),
+      where('yearMonth', '==', yearMonth)
+    );
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     })) as FixedCost[];
-    callback(fixedCosts);
-  });
-};
-
-export const getFixedCostsForMonth = async (userId: string, yearMonth: number) => {
-  const fixedCostsRef = collection(db, 'fixedCosts');
-  const q = query(
-    fixedCostsRef,
-    where('userId', '==', userId),
-    where('yearMonth', '==', yearMonth)
-  );
-
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  })) as FixedCost[];
+  } catch (error) {
+    handleFirestoreError(error, 'getFixedCostsForMonth');
+  }
 };
 
 export const copyFixedCostsFromPreviousMonth = async (
   userId: string,
   fromYearMonth: number,
   toYearMonth: number
-) => {
-  // Hole Fixkosten vom Quellmonat
-  const sourceCosts = await getFixedCostsForMonth(userId, fromYearMonth);
+): Promise<number> => {
+  try {
+    const sourceCosts = await getFixedCostsForMonth(userId, fromYearMonth);
 
-  // Kopiere jede Fixkosten zum Zielmonat
-  const copyPromises = sourceCosts.map(async (cost) => {
-    const newCost: Omit<FixedCost, 'id'> = {
-      name: cost.name,
-      amount: cost.amount,
-      yearMonth: toYearMonth,
-      userId: userId,
-      // paidMonths nicht kopieren, da neuer Monat
-    };
-    return addFixedCost(newCost);
-  });
+    const copyPromises = sourceCosts.map(async (cost) => {
+      const newCost: Omit<FixedCost, 'id'> = {
+        name: cost.name,
+        amount: cost.amount,
+        yearMonth: toYearMonth,
+        userId: userId,
+      };
+      return addFixedCost(newCost);
+    });
 
-  await Promise.all(copyPromises);
-  return sourceCosts.length; // Anzahl der kopierten Fixkosten
+    await Promise.all(copyPromises);
+    return sourceCosts.length;
+  } catch (error) {
+    handleFirestoreError(error, 'copyFixedCostsFromPreviousMonth');
+  }
 };
 
 export const subscribeToIncomes = (
   userId: string,
-  callback: (incomes: Income[]) => void
+  callback: (incomes: Income[]) => void,
+  onError?: (error: Error) => void
 ) => {
   const incomesRef = collection(db, 'incomes');
   const q = query(incomesRef, where('userId', '==', userId));
 
-  return onSnapshot(q, (snapshot) => {
-    const incomes = snapshot.docs.map(doc => ({
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const incomes = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Income[];
+      callback(incomes);
+    },
+    (error) => {
+      console.error('subscribeToIncomes Fehler:', error);
+      onError?.(new Error(`Fehler beim Laden der Einnahmen: ${error.message}`));
+    }
+  );
+};
+
+export const getIncomesForMonth = async (userId: string, yearMonth: number): Promise<Income[]> => {
+  try {
+    const incomesRef = collection(db, 'incomes');
+    const q = query(
+      incomesRef,
+      where('userId', '==', userId),
+      where('yearMonth', '==', yearMonth)
+    );
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     })) as Income[];
-    callback(incomes);
-  });
-};
-
-export const getIncomesForMonth = async (userId: string, yearMonth: number) => {
-  const incomesRef = collection(db, 'incomes');
-  const q = query(
-    incomesRef,
-    where('userId', '==', userId),
-    where('yearMonth', '==', yearMonth)
-  );
-
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  })) as Income[];
+  } catch (error) {
+    handleFirestoreError(error, 'getIncomesForMonth');
+  }
 };
 
 export const copyIncomesFromPreviousMonth = async (
   userId: string,
   fromYearMonth: number,
   toYearMonth: number
-) => {
-  // Hole Einnahmen vom Quellmonat
-  const sourceIncomes = await getIncomesForMonth(userId, fromYearMonth);
+): Promise<number> => {
+  try {
+    const sourceIncomes = await getIncomesForMonth(userId, fromYearMonth);
 
-  // Kopiere jede Einnahme zum Zielmonat
-  const copyPromises = sourceIncomes.map(async (income) => {
-    const newIncome: Omit<Income, 'id'> = {
-      name: income.name,
-      amount: income.amount,
-      yearMonth: toYearMonth,
-      userId: userId
-    };
-    return addIncome(newIncome);
-  });
+    const copyPromises = sourceIncomes.map(async (income) => {
+      const newIncome: Omit<Income, 'id'> = {
+        name: income.name,
+        amount: income.amount,
+        yearMonth: toYearMonth,
+        userId: userId
+      };
+      return addIncome(newIncome);
+    });
 
-  await Promise.all(copyPromises);
-  return sourceIncomes.length; // Anzahl der kopierten Einnahmen
+    await Promise.all(copyPromises);
+    return sourceIncomes.length;
+  } catch (error) {
+    handleFirestoreError(error, 'copyIncomesFromPreviousMonth');
+  }
 };
 
 // Keyword Filters
-export const addKeywordFilter = async (filter: Omit<KeywordFilter, 'id'>) => {
-  const filtersRef = collection(db, 'keywordFilters');
-  const docRef = await addDoc(filtersRef, filter);
-  return docRef.id;
+export const addKeywordFilter = async (filter: Omit<KeywordFilter, 'id'>): Promise<string> => {
+  try {
+    const filtersRef = collection(db, 'keywordFilters');
+    const docRef = await addDoc(filtersRef, filter);
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, 'addKeywordFilter');
+  }
 };
 
-export const getKeywordFilters = async (userId: string) => {
-  const filtersRef = collection(db, 'keywordFilters');
-  const q = query(filtersRef, where('userId', '==', userId));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  })) as KeywordFilter[];
+export const getKeywordFilters = async (userId: string): Promise<KeywordFilter[]> => {
+  try {
+    const filtersRef = collection(db, 'keywordFilters');
+    const q = query(filtersRef, where('userId', '==', userId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as KeywordFilter[];
+  } catch (error) {
+    handleFirestoreError(error, 'getKeywordFilters');
+  }
 };
 
-export const updateKeywordFilter = async (filterId: string, updates: Partial<KeywordFilter>) => {
-  const filterRef = doc(db, 'keywordFilters', filterId);
-  await updateDoc(filterRef, updates);
+export const updateKeywordFilter = async (filterId: string, updates: Partial<KeywordFilter>): Promise<void> => {
+  try {
+    const filterRef = doc(db, 'keywordFilters', filterId);
+    await updateDoc(filterRef, updates);
+  } catch (error) {
+    handleFirestoreError(error, 'updateKeywordFilter');
+  }
 };
 
-export const deleteKeywordFilter = async (filterId: string) => {
-  await deleteDoc(doc(db, 'keywordFilters', filterId));
+export const deleteKeywordFilter = async (filterId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'keywordFilters', filterId));
+  } catch (error) {
+    handleFirestoreError(error, 'deleteKeywordFilter');
+  }
 };
 
 export const subscribeToKeywordFilters = (
   userId: string,
-  callback: (filters: KeywordFilter[]) => void
+  callback: (filters: KeywordFilter[]) => void,
+  onError?: (error: Error) => void
 ) => {
   const filtersRef = collection(db, 'keywordFilters');
   const q = query(filtersRef, where('userId', '==', userId));
 
-  return onSnapshot(q, (snapshot) => {
-    const filters = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as KeywordFilter[];
-    callback(filters);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const filters = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as KeywordFilter[];
+      callback(filters);
+    },
+    (error) => {
+      console.error('subscribeToKeywordFilters Fehler:', error);
+      onError?.(new Error(`Fehler beim Laden der Keyword-Filter: ${error.message}`));
+    }
+  );
 };
