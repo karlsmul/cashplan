@@ -1,0 +1,33 @@
+mutation CreateUser @auth(level: USER, insecureReason: "This operation is safe to expose to all logged in users.") {
+  user_insert(data: {
+    id_expr: "uuidV4()"
+    displayName: "New User"
+    createdAt_expr: "request.time"
+  })
+}
+
+query ListTasks @auth(level: USER) {
+  tasks(where: {userId: {eq_expr: "auth.uid"}}) {
+    id
+    title
+    description
+    isCompleted
+  }
+}
+
+mutation UpdateTask($id: UUID!, $isCompleted: Boolean!) @auth(level: USER) {
+  task_update(
+    key: {id: $id}
+    data: {
+      isCompleted: $isCompleted
+    }
+  )
+}
+
+query ListCategories @auth(level: USER) {
+  categories(where: {userId: {eq_expr: "auth.uid"}}) {
+    id
+    name
+    description
+  }
+}

@@ -1,0 +1,46 @@
+mutation CreateSeedData @transaction @auth(level: PUBLIC, insecureReason: "This operation is used to populate the database with seed data.") {
+  user_insertMany(data: [
+    {
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      displayName: "demouser1",
+      createdAt: "2024-04-26T10:00:00Z"
+    },
+    {
+      id: "550e8400-e29b-41d4-a716-446655440001",
+      displayName: "demouser2",
+      createdAt: "2024-04-26T10:00:00Z"
+    }
+  ])
+  category_insertMany(data: [
+    {
+      id: "660e8400-e29b-41d4-a716-446655440000",
+      name: "Demo Category 1",
+      createdAt: "2024-04-26T10:00:00Z",
+      userId: "550e8400-e29b-41d4-a716-446655440000"
+    },
+    {
+      id: "660e8400-e29b-41d4-a716-446655440001",
+      name: "Demo Category 2",
+      createdAt: "2024-04-26T10:00:00Z",
+      userId: "550e8400-e29b-41d4-a716-446655440001"
+    }
+  ])
+  task_insertMany(data: [
+    {
+      id: "770e8400-e29b-41d4-a716-446655440000",
+      title: "Demo Task 1",
+      createdAt: "2024-04-26T10:00:00Z",
+      isCompleted: false,
+      userId: "550e8400-e29b-41d4-a716-446655440000",
+      categoryId: "660e8400-e29b-41d4-a716-446655440000"
+    },
+    {
+      id: "770e8400-e29b-41d4-a716-446655440001",
+      title: "Demo Task 2",
+      createdAt: "2024-04-26T10:00:00Z",
+      isCompleted: false,
+      userId: "550e8400-e29b-41d4-a716-446655440001",
+      categoryId: "660e8400-e29b-41d4-a716-446655440001"
+    }
+  ])
+}

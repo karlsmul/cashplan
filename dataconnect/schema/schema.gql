@@ -1,0 +1,25 @@
+type User @table {
+  displayName: String!
+  email: String
+  photoUrl: String
+  createdAt: Timestamp!
+}
+
+type Category @table {
+  name: String!
+  description: String
+  createdAt: Timestamp!
+  user: User
+}
+
+type Task @table {
+  title: String!
+  description: String
+  dueDate: Date
+  dueTime: Timestamp
+  priority: String # Storing enum as String
+  isCompleted: Boolean!
+  createdAt: Timestamp!
+  user: User
+  category: Category
+}
