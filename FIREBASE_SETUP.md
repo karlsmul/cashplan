@@ -94,7 +94,8 @@ service cloud.firestore {
 
 ### Firebase Config Secrets:
 - **Name**: `VITE_FIREBASE_API_KEY`
-  - **Value**: Ihr `apiKey` aus der Firebase-Config
+  - **Value**: Ihr `AIzaSyAJj86KSYTsUcCMQ1nkjbgS1P3Xu64YUi8
+  ` aus der Firebase-Config
 
 - **Name**: `VITE_FIREBASE_AUTH_DOMAIN`
   - **Value**: Ihr `authDomain` aus der Firebase-Config
