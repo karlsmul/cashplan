@@ -164,6 +164,8 @@ const WeekView: React.FC<WeekViewProps> = ({ weekNumber, startDate, endDate, exp
                             <input
                               type="number"
                               step="0.01"
+                              min="0.01"
+                              max="99999.99"
                               value={editForm.amount}
                               onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
                               className="input w-full text-sm"
@@ -186,6 +188,7 @@ const WeekView: React.FC<WeekViewProps> = ({ weekNumber, startDate, endDate, exp
                             value={editForm.description}
                             onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                             className="input w-full text-sm"
+                            maxLength={200}
                           />
                         </div>
                         <div>

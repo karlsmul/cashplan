@@ -56,6 +56,8 @@ const ExpenseForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
           <input
             type="number"
             step="0.01"
+            min="0.01"
+            max="99999.99"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="input w-full"
@@ -95,6 +97,7 @@ const ExpenseForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
             onChange={(e) => setDescription(e.target.value)}
             className="input w-full"
             placeholder="z.B. Einkauf, Tanken..."
+            maxLength={200}
             required
           />
         </div>

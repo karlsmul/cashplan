@@ -357,6 +357,8 @@ const Settings: React.FC = () => {
             <input
               type="number"
               step="0.01"
+              min="0.01"
+              max="99999.99"
               value={weeklyBudgetInput}
               onChange={(e) => setWeeklyBudgetInput(e.target.value)}
               className="input w-full"
@@ -393,6 +395,7 @@ const Settings: React.FC = () => {
                   onChange={(e) => setNewIncome({ ...newIncome, name: e.target.value })}
                   className="input w-full"
                   placeholder="z.B. Gehalt"
+                  maxLength={100}
                   required
                 />
               </div>
@@ -401,6 +404,8 @@ const Settings: React.FC = () => {
                 <input
                   type="number"
                   step="0.01"
+                  min="0.01"
+                  max="999999.99"
                   value={newIncome.amount}
                   onChange={(e) => setNewIncome({ ...newIncome, amount: e.target.value })}
                   className="input w-full"
@@ -444,6 +449,7 @@ const Settings: React.FC = () => {
                           value={editIncomeForm.name}
                           onChange={(e) => setEditIncomeForm({ ...editIncomeForm, name: e.target.value })}
                           className="input w-full"
+                          maxLength={100}
                         />
                       </div>
                       <div>
@@ -451,6 +457,8 @@ const Settings: React.FC = () => {
                         <input
                           type="number"
                           step="0.01"
+                          min="0.01"
+                          max="999999.99"
                           value={editIncomeForm.amount}
                           onChange={(e) => setEditIncomeForm({ ...editIncomeForm, amount: e.target.value })}
                           className="input w-full"
@@ -516,6 +524,7 @@ const Settings: React.FC = () => {
                   onChange={(e) => setNewFixedCost({ ...newFixedCost, name: e.target.value })}
                   className="input w-full"
                   placeholder="z.B. Miete, Strom"
+                  maxLength={100}
                   required
                 />
               </div>
@@ -524,6 +533,8 @@ const Settings: React.FC = () => {
                 <input
                   type="number"
                   step="0.01"
+                  min="0.01"
+                  max="99999.99"
                   value={newFixedCost.amount}
                   onChange={(e) => setNewFixedCost({ ...newFixedCost, amount: e.target.value })}
                   className="input w-full"
@@ -576,6 +587,7 @@ const Settings: React.FC = () => {
                             value={editFixedCostForm.name}
                             onChange={(e) => setEditFixedCostForm({ ...editFixedCostForm, name: e.target.value })}
                             className="input w-full"
+                            maxLength={100}
                           />
                         </div>
                         <div>
@@ -583,6 +595,8 @@ const Settings: React.FC = () => {
                           <input
                             type="number"
                             step="0.01"
+                            min="0.01"
+                            max="99999.99"
                             value={editFixedCostForm.amount}
                             onChange={(e) => setEditFixedCostForm({ ...editFixedCostForm, amount: e.target.value })}
                             className="input w-full"
