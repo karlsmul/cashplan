@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Expense, ExpenseCategory } from '../types';
-import { formatCurrency, formatDate } from '../utils/dateUtils';
+import { formatCurrency, formatDate, formatDateWithWeekday } from '../utils/dateUtils';
 import { deleteExpense, updateExpense } from '../services/firestore';
 
 interface WeekViewProps {
@@ -87,7 +87,7 @@ const WeekView: React.FC<WeekViewProps> = ({ weekNumber, startDate, endDate, exp
     .reduce((sum, exp) => sum + exp.amount, 0);
 
   const expensesByDay = sortExpenses(expenses).reduce((acc, expense) => {
-    const dateKey = formatDate(expense.date);
+    const dateKey = formatDateWithWeekday(expense.date);
     if (!acc[dateKey]) {
       acc[dateKey] = [];
     }

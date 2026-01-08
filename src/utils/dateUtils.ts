@@ -61,6 +61,12 @@ export const formatDate = (date: Date): string => {
   });
 };
 
+export const formatDateWithWeekday = (date: Date): string => {
+  const weekday = date.toLocaleDateString('de-DE', { weekday: 'long' });
+  const dateStr = formatDate(date);
+  return `${weekday}, ${dateStr}`;
+};
+
 export const getMonthName = (month: number): string => {
   const months = [
     'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
