@@ -468,6 +468,7 @@ export const subscribeToKeywordFilters = (
 
 // User Settings
 const DEFAULT_WEEKLY_BUDGET = 200;
+const DEFAULT_STORAGE_MODE = 'cloud' as const;
 
 export const getUserSettings = async (userId: string): Promise<UserSettings> => {
   try {
@@ -479,14 +480,21 @@ export const getUserSettings = async (userId: string): Promise<UserSettings> => 
       // Erstelle Default-Settings
       const defaultSettings: Omit<UserSettings, 'id'> = {
         userId,
-        weeklyBudget: DEFAULT_WEEKLY_BUDGET
+        weeklyBudget: DEFAULT_WEEKLY_BUDGET,
+        storageMode: DEFAULT_STORAGE_MODE
       };
       const docRef = await addDoc(settingsRef, defaultSettings);
       return { id: docRef.id, ...defaultSettings };
     }
 
     const doc = snapshot.docs[0];
-    return { id: doc.id, ...doc.data() } as UserSettings;
+    const data = doc.data();
+    // Fallback für bestehende User ohne storageMode
+    return {
+      id: doc.id,
+      ...data,
+      storageMode: data.storageMode || DEFAULT_STORAGE_MODE
+    } as UserSettings;
   } catch (error) {
     return handleFirestoreError(error, 'getUserSettings');
   }
@@ -515,13 +523,20 @@ export const subscribeToUserSettings = (
         // Erstelle Default-Settings wenn keine vorhanden
         const defaultSettings: Omit<UserSettings, 'id'> = {
           userId,
-          weeklyBudget: DEFAULT_WEEKLY_BUDGET
+          weeklyBudget: DEFAULT_WEEKLY_BUDGET,
+          storageMode: DEFAULT_STORAGE_MODE
         };
         const docRef = await addDoc(settingsRef, defaultSettings);
         callback({ id: docRef.id, ...defaultSettings });
       } else {
         const doc = snapshot.docs[0];
-        callback({ id: doc.id, ...doc.data() } as UserSettings);
+        const data = doc.data();
+        // Fallback für bestehende User ohne storageMode
+        callback({
+          id: doc.id,
+          ...data,
+          storageMode: data.storageMode || DEFAULT_STORAGE_MODE
+        } as UserSettings);
       }
     },
     (error) => {

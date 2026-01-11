@@ -72,8 +72,11 @@ export interface KeywordFilter {
   createdAt?: Date;
 }
 
+export type StorageMode = 'cloud' | 'local';
+
 export interface UserSettings {
   id: string;
   userId: string;
   weeklyBudget: number; // Wochenlimit in Euro (default: 200)
+  storageMode: StorageMode; // 'cloud' = Firebase, 'local' = nur lokal (IndexedDB)
 }

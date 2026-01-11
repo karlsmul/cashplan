@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { FixedCost, Income, UserSettings } from '../types';
+import { FixedCost, Income, UserSettings, StorageMode } from '../types';
 import {
   addFixedCost,
   addIncome,
@@ -56,6 +56,10 @@ const Settings: React.FC = () => {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+
+  // Speichermodus
+  const [storageModeChanging, setStorageModeChanging] = useState(false);
+  const [storageModeSuccess, setStorageModeSuccess] = useState('');
 
   const monthNames = [
     'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -153,6 +157,41 @@ const Settings: React.FC = () => {
       }
     } finally {
       setChangingPassword(false);
+    }
+  };
+
+  // Handler: Speichermodus ändern
+  const handleStorageModeChange = async (newMode: StorageMode) => {
+    if (!userSettings) return;
+
+    // Warnung anzeigen wenn von Cloud zu Lokal gewechselt wird
+    if (newMode === 'local') {
+      const confirmed = window.confirm(
+        '⚠️ ACHTUNG: Lokaler Speichermodus\n\n' +
+        'Bei lokaler Speicherung:\n' +
+        '• Daten werden NUR auf diesem Gerät gespeichert\n' +
+        '• Kein Sync zwischen Geräten möglich\n' +
+        '• Bei Geräteverlust sind alle Daten verloren\n' +
+        '• Regelmäßige Backups empfohlen\n\n' +
+        'Bereits in der Cloud gespeicherte Daten bleiben dort erhalten.\n\n' +
+        'Möchten Sie wirklich zum lokalen Modus wechseln?'
+      );
+      if (!confirmed) return;
+    }
+
+    setStorageModeChanging(true);
+    try {
+      await updateUserSettings(userSettings.id, { storageMode: newMode });
+      setStorageModeSuccess(
+        newMode === 'cloud'
+          ? 'Cloud-Speicherung aktiviert. Ihre Daten werden synchronisiert.'
+          : 'Lokale Speicherung aktiviert. Neue Daten werden nur auf diesem Gerät gespeichert.'
+      );
+      setTimeout(() => setStorageModeSuccess(''), 5000);
+    } catch (error: any) {
+      setError(error.message || 'Fehler beim Ändern des Speichermodus');
+    } finally {
+      setStorageModeChanging(false);
     }
   };
 
@@ -445,6 +484,97 @@ const Settings: React.FC = () => {
             Aktuelles Limit: {formatCurrency(userSettings.weeklyBudget)}
           </p>
         )}
+      </div>
+
+      {/* Datenschutz & Speicherung */}
+      <div className="card mb-6 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20">
+        <h3 className="text-xl font-bold mb-4 text-blue-300">🔒 Datenschutz & Speicherung</h3>
+        <p className="text-sm text-white/60 mb-4">
+          Wählen Sie, wo Ihre Finanzdaten gespeichert werden sollen.
+        </p>
+
+        <div className="space-y-3">
+          {/* Cloud Option */}
+          <label
+            className={`flex items-start gap-4 p-4 rounded-lg cursor-pointer transition-all ${
+              userSettings?.storageMode === 'cloud'
+                ? 'bg-blue-500/20 border-2 border-blue-400'
+                : 'bg-white/5 border-2 border-transparent hover:border-white/20'
+            }`}
+          >
+            <input
+              type="radio"
+              name="storageMode"
+              value="cloud"
+              checked={userSettings?.storageMode === 'cloud'}
+              onChange={() => handleStorageModeChange('cloud')}
+              disabled={storageModeChanging}
+              className="mt-1"
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-blue-300">☁️ Cloud-Speicherung</span>
+                <span className="text-xs bg-green-500/30 text-green-300 px-2 py-0.5 rounded-full">Empfohlen</span>
+              </div>
+              <p className="text-sm text-white/60 mt-1">
+                Daten werden sicher in der Cloud (Firebase) gespeichert.
+              </p>
+              <ul className="text-xs text-white/50 mt-2 space-y-1">
+                <li>✓ Sync zwischen allen Geräten</li>
+                <li>✓ Automatische Backups</li>
+                <li>✓ Daten sicher bei Geräteverlust</li>
+              </ul>
+            </div>
+          </label>
+
+          {/* Lokal Option */}
+          <label
+            className={`flex items-start gap-4 p-4 rounded-lg cursor-pointer transition-all ${
+              userSettings?.storageMode === 'local'
+                ? 'bg-orange-500/20 border-2 border-orange-400'
+                : 'bg-white/5 border-2 border-transparent hover:border-white/20'
+            }`}
+          >
+            <input
+              type="radio"
+              name="storageMode"
+              value="local"
+              checked={userSettings?.storageMode === 'local'}
+              onChange={() => handleStorageModeChange('local')}
+              disabled={storageModeChanging}
+              className="mt-1"
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-orange-300">📱 Nur lokale Speicherung</span>
+              </div>
+              <p className="text-sm text-white/60 mt-1">
+                Daten werden nur auf diesem Gerät gespeichert (IndexedDB).
+              </p>
+              <ul className="text-xs text-white/50 mt-2 space-y-1">
+                <li>✓ Maximaler Datenschutz</li>
+                <li>✓ Keine Cloud-Verbindung nötig</li>
+                <li>⚠️ Kein Sync zwischen Geräten</li>
+                <li>⚠️ Datenverlust bei Geräteverlust möglich</li>
+              </ul>
+            </div>
+          </label>
+        </div>
+
+        {storageModeChanging && (
+          <p className="text-sm text-white/60 mt-4">Speichermodus wird geändert...</p>
+        )}
+
+        {storageModeSuccess && (
+          <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3 text-green-200 text-sm mt-4">
+            {storageModeSuccess}
+          </div>
+        )}
+
+        <p className="text-xs text-white/40 mt-4">
+          Hinweis: Bereits gespeicherte Daten werden nicht automatisch migriert.
+          Bei Wechsel des Speichermodus bleiben bestehende Daten an ihrem Ort erhalten.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
