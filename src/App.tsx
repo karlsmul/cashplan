@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
+import Info from './pages/Info';
 
 const App: React.FC = () => {
   const { user, loading } = useAuth();
@@ -39,6 +40,7 @@ const App: React.FC = () => {
           <Route path="/" element={<Dashboard />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/info" element={<Info />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
