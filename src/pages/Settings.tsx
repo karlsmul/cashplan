@@ -20,7 +20,7 @@ import {
 import { formatCurrency, getMonthName } from '../utils/dateUtils';
 
 const Settings: React.FC = () => {
-  const { user } = useAuth();
+  const { user, changePassword } = useAuth();
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
@@ -48,6 +48,14 @@ const Settings: React.FC = () => {
   const [deleteMonth, setDeleteMonth] = useState(new Date().getMonth());
   const [deleteYear, setDeleteYear] = useState(new Date().getFullYear());
   const [deleting, setDeleting] = useState(false);
+
+  // Passwort ändern
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const monthNames = [
     'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -87,6 +95,64 @@ const Settings: React.FC = () => {
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
       setError(error.message || 'Fehler beim Speichern des Wochenlimits.');
+    }
+  };
+
+  // Passwort-Validierung
+  const validatePassword = (password: string): { valid: boolean; message: string } => {
+    if (password.length < 8) {
+      return { valid: false, message: 'Mindestens 8 Zeichen erforderlich' };
+    }
+    if (!/[A-Z]/.test(password)) {
+      return { valid: false, message: 'Mindestens ein Großbuchstabe erforderlich' };
+    }
+    if (!/[a-z]/.test(password)) {
+      return { valid: false, message: 'Mindestens ein Kleinbuchstabe erforderlich' };
+    }
+    if (!/[0-9]/.test(password)) {
+      return { valid: false, message: 'Mindestens eine Zahl erforderlich' };
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      return { valid: false, message: 'Mindestens ein Sonderzeichen erforderlich' };
+    }
+    return { valid: true, message: '' };
+  };
+
+  // Handler: Passwort ändern
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    // Validierung
+    const validation = validatePassword(newPassword);
+    if (!validation.valid) {
+      setPasswordError(validation.message);
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError('Die neuen Passwörter stimmen nicht überein');
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      await changePassword(currentPassword, newPassword);
+      setPasswordSuccess('Passwort erfolgreich geändert!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setTimeout(() => setPasswordSuccess(''), 5000);
+    } catch (error: any) {
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setPasswordError('Das aktuelle Passwort ist falsch');
+      } else {
+        setPasswordError(error.message || 'Fehler beim Ändern des Passworts');
+      }
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -670,6 +736,70 @@ const Settings: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Passwort ändern - nur für E-Mail-Nutzer */}
+      {user?.providerData?.some(p => p.providerId === 'password') && (
+        <div className="mt-8">
+          <div className="card">
+            <h2 className="text-2xl font-bold mb-4 text-blue-400">🔐 Passwort ändern</h2>
+            <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+              <div>
+                <label className="block text-sm font-medium mb-2">Aktuelles Passwort</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="input w-full"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Neues Passwort</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="input w-full"
+                  required
+                />
+                <p className="text-xs text-white/50 mt-1">
+                  Mind. 8 Zeichen, Groß-/Kleinbuchstaben, Zahl, Sonderzeichen
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Neues Passwort bestätigen</label>
+                <input
+                  type="password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  className="input w-full"
+                  required
+                />
+              </div>
+
+              {passwordError && (
+                <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-200 text-sm">
+                  {passwordError}
+                </div>
+              )}
+
+              {passwordSuccess && (
+                <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3 text-green-200 text-sm">
+                  {passwordSuccess}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={changingPassword}
+                className="btn-primary"
+              >
+                {changingPassword ? 'Wird geändert...' : 'Passwort ändern'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Datenverwaltung */}
       <div className="mt-8">
