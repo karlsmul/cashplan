@@ -239,14 +239,16 @@ const Settings: React.FC = () => {
     if (!user) return;
 
     try {
-      await addFixedCost({
+      const fixedCostData: Omit<FixedCost, 'id'> = {
         name: newFixedCost.name,
         amount: parseFloat(newFixedCost.amount),
         yearMonth: selectedYearMonth,
         userId: user.uid,
         recurrence: newFixedCost.recurrence,
-        recurrenceMonths: newFixedCost.recurrenceMonths.length > 0 ? newFixedCost.recurrenceMonths : undefined
-      });
+        recurrenceMonths: newFixedCost.recurrenceMonths.length > 0 ? newFixedCost.recurrenceMonths : []
+      };
+
+      await addFixedCost(fixedCostData);
 
       setNewFixedCost({ name: '', amount: '', recurrence: 'monthly', recurrenceMonths: [] });
       setSuccess('Fixkosten erfolgreich hinzugefügt!');
@@ -353,12 +355,21 @@ const Settings: React.FC = () => {
     if (!editingFixedCost) return;
 
     try {
-      await updateFixedCost(editingFixedCost.id, {
+      const updateData: Partial<FixedCost> = {
         name: editFixedCostForm.name,
         amount: parseFloat(editFixedCostForm.amount),
-        recurrence: editFixedCostForm.recurrence,
-        recurrenceMonths: editFixedCostForm.recurrenceMonths.length > 0 ? editFixedCostForm.recurrenceMonths : undefined
-      });
+        recurrence: editFixedCostForm.recurrence
+      };
+
+      // Nur recurrenceMonths setzen wenn es Werte gibt
+      if (editFixedCostForm.recurrenceMonths.length > 0) {
+        updateData.recurrenceMonths = editFixedCostForm.recurrenceMonths;
+      } else {
+        // Leeres Array für Firestore-Kompatibilität
+        updateData.recurrenceMonths = [];
+      }
+
+      await updateFixedCost(editingFixedCost.id, updateData);
       setEditingFixedCost(null);
       setSuccess('Fixkosten erfolgreich aktualisiert!');
       setTimeout(() => setSuccess(''), 3000);
