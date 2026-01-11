@@ -307,6 +307,36 @@ export const getFixedCostsForMonth = async (userId: string, yearMonth: number): 
   }
 };
 
+// Hilfsfunktion: Prüft ob eine Fixkosten für einen bestimmten Monat relevant ist
+const isFixedCostRelevantForMonth = (cost: FixedCost, targetMonth: number): boolean => {
+  const recurrence = cost.recurrence || 'monthly'; // Default: monatlich für Rückwärtskompatibilität
+
+  switch (recurrence) {
+    case 'monthly':
+      return true; // Jeden Monat relevant
+
+    case 'quarterly':
+      // Vierteljährlich: Monate 1, 4, 7, 10 oder benutzerdefiniert
+      if (cost.recurrenceMonths && cost.recurrenceMonths.length > 0) {
+        return cost.recurrenceMonths.includes(targetMonth);
+      }
+      return [1, 4, 7, 10].includes(targetMonth); // Standard-Quartale
+
+    case 'yearly':
+      // Jährlich: Nur in bestimmten Monaten
+      if (cost.recurrenceMonths && cost.recurrenceMonths.length > 0) {
+        return cost.recurrenceMonths.includes(targetMonth);
+      }
+      return targetMonth === 1; // Standard: Januar
+
+    case 'once':
+      return false; // Einmalig: Wird nicht kopiert
+
+    default:
+      return true;
+  }
+};
+
 export const copyFixedCostsFromPreviousMonth = async (
   userId: string,
   fromYearMonth: number,
@@ -314,19 +344,27 @@ export const copyFixedCostsFromPreviousMonth = async (
 ): Promise<number> => {
   try {
     const sourceCosts = await getFixedCostsForMonth(userId, fromYearMonth);
+    const targetMonth = toYearMonth % 100; // Extrahiere Monat (1-12)
 
-    const copyPromises = sourceCosts.map(async (cost) => {
+    // Filtere Kosten basierend auf Wiederholungsintervall
+    const relevantCosts = sourceCosts.filter(cost =>
+      isFixedCostRelevantForMonth(cost, targetMonth)
+    );
+
+    const copyPromises = relevantCosts.map(async (cost) => {
       const newCost: Omit<FixedCost, 'id'> = {
         name: cost.name,
         amount: cost.amount,
         yearMonth: toYearMonth,
         userId: userId,
+        recurrence: cost.recurrence,
+        recurrenceMonths: cost.recurrenceMonths,
       };
       return addFixedCost(newCost);
     });
 
     await Promise.all(copyPromises);
-    return sourceCosts.length;
+    return relevantCosts.length;
   } catch (error) {
     return handleFirestoreError(error, 'copyFixedCostsFromPreviousMonth');
   }

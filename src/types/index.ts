@@ -16,6 +16,8 @@ export interface FixedCost {
   yearMonth: number; // YYYYMM - Jede Fixkosten gehört zu genau einem Monat (z.B. 202601 für Januar 2026)
   paidMonths?: number[]; // Monate, in denen die Kosten bereits bezahlt wurden (Format: YYYYMM als number, z.B. 202412)
   userId: string;
+  recurrence?: RecurrenceType; // Wiederholungsintervall (default: 'monthly' für Rückwärtskompatibilität)
+  recurrenceMonths?: number[]; // Für quarterly/yearly: Monate (1-12) in denen die Kosten anfallen
 }
 
 export interface Income {
@@ -73,6 +75,9 @@ export interface KeywordFilter {
 }
 
 export type StorageMode = 'cloud' | 'local';
+
+// Wiederholungsintervall für Fixkosten
+export type RecurrenceType = 'monthly' | 'quarterly' | 'yearly' | 'once';
 
 export interface UserSettings {
   id: string;

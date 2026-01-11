@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { FixedCost, Income, UserSettings, StorageMode } from '../types';
+import { FixedCost, Income, UserSettings, StorageMode, RecurrenceType } from '../types';
 import {
   addFixedCost,
   addIncome,
@@ -31,13 +31,23 @@ const Settings: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState(2026);
   const selectedYearMonth = selectedYear * 100 + (selectedMonth + 1);
 
-  const [newFixedCost, setNewFixedCost] = useState({ name: '', amount: '' });
+  const [newFixedCost, setNewFixedCost] = useState({
+    name: '',
+    amount: '',
+    recurrence: 'monthly' as RecurrenceType,
+    recurrenceMonths: [] as number[]
+  });
   const [newIncome, setNewIncome] = useState({ name: '', amount: '' });
 
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
   const [editIncomeForm, setEditIncomeForm] = useState({ name: '', amount: '' });
   const [editingFixedCost, setEditingFixedCost] = useState<FixedCost | null>(null);
-  const [editFixedCostForm, setEditFixedCostForm] = useState({ name: '', amount: '' });
+  const [editFixedCostForm, setEditFixedCostForm] = useState({
+    name: '',
+    amount: '',
+    recurrence: 'monthly' as RecurrenceType,
+    recurrenceMonths: [] as number[]
+  });
 
   // Sortierung
   const [incomeSortBy, setIncomeSortBy] = useState<'name' | 'amount-desc' | 'amount-asc'>('name');
@@ -65,6 +75,34 @@ const Settings: React.FC = () => {
     'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
     'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
   ];
+
+  // Wiederholungs-Labels
+  const recurrenceLabels: Record<RecurrenceType, string> = {
+    monthly: 'Monatlich',
+    quarterly: 'Vierteljährlich',
+    yearly: 'Jährlich',
+    once: 'Einmalig'
+  };
+
+  const recurrenceColors: Record<RecurrenceType, string> = {
+    monthly: 'bg-blue-500/20 text-blue-300',
+    quarterly: 'bg-purple-500/20 text-purple-300',
+    yearly: 'bg-yellow-500/20 text-yellow-300',
+    once: 'bg-gray-500/20 text-gray-300'
+  };
+
+  // Toggle-Funktion für Monats-Auswahl
+  const toggleMonth = (
+    month: number,
+    currentMonths: number[],
+    setter: (months: number[]) => void
+  ) => {
+    if (currentMonths.includes(month)) {
+      setter(currentMonths.filter(m => m !== month));
+    } else {
+      setter([...currentMonths, month].sort((a, b) => a - b));
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -205,10 +243,12 @@ const Settings: React.FC = () => {
         name: newFixedCost.name,
         amount: parseFloat(newFixedCost.amount),
         yearMonth: selectedYearMonth,
-        userId: user.uid
+        userId: user.uid,
+        recurrence: newFixedCost.recurrence,
+        recurrenceMonths: newFixedCost.recurrenceMonths.length > 0 ? newFixedCost.recurrenceMonths : undefined
       });
 
-      setNewFixedCost({ name: '', amount: '' });
+      setNewFixedCost({ name: '', amount: '', recurrence: 'monthly', recurrenceMonths: [] });
       setSuccess('Fixkosten erfolgreich hinzugefügt!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
@@ -301,7 +341,12 @@ const Settings: React.FC = () => {
 
   const handleEditFixedCost = (cost: FixedCost) => {
     setEditingFixedCost(cost);
-    setEditFixedCostForm({ name: cost.name, amount: cost.amount.toString() });
+    setEditFixedCostForm({
+      name: cost.name,
+      amount: cost.amount.toString(),
+      recurrence: cost.recurrence || 'monthly',
+      recurrenceMonths: cost.recurrenceMonths || []
+    });
   };
 
   const handleSaveFixedCost = async () => {
@@ -310,7 +355,9 @@ const Settings: React.FC = () => {
     try {
       await updateFixedCost(editingFixedCost.id, {
         name: editFixedCostForm.name,
-        amount: parseFloat(editFixedCostForm.amount)
+        amount: parseFloat(editFixedCostForm.amount),
+        recurrence: editFixedCostForm.recurrence,
+        recurrenceMonths: editFixedCostForm.recurrenceMonths.length > 0 ? editFixedCostForm.recurrenceMonths : undefined
       });
       setEditingFixedCost(null);
       setSuccess('Fixkosten erfolgreich aktualisiert!');
@@ -738,6 +785,58 @@ const Settings: React.FC = () => {
                   required
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Wiederholung</label>
+                <select
+                  value={newFixedCost.recurrence}
+                  onChange={(e) => setNewFixedCost({
+                    ...newFixedCost,
+                    recurrence: e.target.value as RecurrenceType,
+                    recurrenceMonths: []
+                  })}
+                  className="select w-full"
+                >
+                  <option value="monthly">Monatlich (jeden Monat)</option>
+                  <option value="quarterly">Vierteljährlich</option>
+                  <option value="yearly">Jährlich</option>
+                  <option value="once">Einmalig (wird nicht kopiert)</option>
+                </select>
+              </div>
+              {(newFixedCost.recurrence === 'quarterly' || newFixedCost.recurrence === 'yearly') && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    In welchen Monaten fällt diese Kosten an?
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {monthNames.map((month, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => toggleMonth(
+                          index + 1,
+                          newFixedCost.recurrenceMonths,
+                          (months) => setNewFixedCost({ ...newFixedCost, recurrenceMonths: months })
+                        )}
+                        className={`px-2 py-1 text-xs rounded transition-colors ${
+                          newFixedCost.recurrenceMonths.includes(index + 1)
+                            ? 'bg-purple-500 text-white'
+                            : 'bg-white/10 text-white/60 hover:bg-white/20'
+                        }`}
+                      >
+                        {month.slice(0, 3)}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-white/50 mt-2">
+                    {newFixedCost.recurrenceMonths.length === 0
+                      ? newFixedCost.recurrence === 'quarterly'
+                        ? 'Standard: Jan, Apr, Jul, Okt'
+                        : 'Standard: Januar'
+                      : `Ausgewählt: ${newFixedCost.recurrenceMonths.map(m => monthNames[m - 1].slice(0, 3)).join(', ')}`
+                    }
+                  </p>
+                </div>
+              )}
               <p className="text-sm text-white/60">
                 Wird für {getMonthName(selectedMonth)} {selectedYear} hinzugefügt
               </p>
@@ -798,6 +897,48 @@ const Settings: React.FC = () => {
                             className="input w-full"
                           />
                         </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Wiederholung</label>
+                          <select
+                            value={editFixedCostForm.recurrence}
+                            onChange={(e) => setEditFixedCostForm({
+                              ...editFixedCostForm,
+                              recurrence: e.target.value as RecurrenceType,
+                              recurrenceMonths: []
+                            })}
+                            className="select w-full"
+                          >
+                            <option value="monthly">Monatlich (jeden Monat)</option>
+                            <option value="quarterly">Vierteljährlich</option>
+                            <option value="yearly">Jährlich</option>
+                            <option value="once">Einmalig (wird nicht kopiert)</option>
+                          </select>
+                        </div>
+                        {(editFixedCostForm.recurrence === 'quarterly' || editFixedCostForm.recurrence === 'yearly') && (
+                          <div>
+                            <label className="block text-sm font-medium mb-2">Monate</label>
+                            <div className="grid grid-cols-4 gap-2">
+                              {monthNames.map((month, index) => (
+                                <button
+                                  key={index}
+                                  type="button"
+                                  onClick={() => toggleMonth(
+                                    index + 1,
+                                    editFixedCostForm.recurrenceMonths,
+                                    (months) => setEditFixedCostForm({ ...editFixedCostForm, recurrenceMonths: months })
+                                  )}
+                                  className={`px-2 py-1 text-xs rounded transition-colors ${
+                                    editFixedCostForm.recurrenceMonths.includes(index + 1)
+                                      ? 'bg-purple-500 text-white'
+                                      : 'bg-white/10 text-white/60 hover:bg-white/20'
+                                  }`}
+                                >
+                                  {month.slice(0, 3)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <div className="flex gap-2">
                           <button onClick={handleSaveFixedCost} className="btn-primary flex-1">
                             ✓ Speichern
@@ -820,14 +961,22 @@ const Settings: React.FC = () => {
                         }`}
                       >
                         <div className="flex-1 pointer-events-none">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-medium">{cost.name}</p>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${recurrenceColors[cost.recurrence || 'monthly']}`}>
+                              {recurrenceLabels[cost.recurrence || 'monthly']}
+                            </span>
                             {isPaid && (
                               <span className="text-xs bg-green-500/30 text-green-300 px-2 py-1 rounded-full">
                                 ✓ Bezahlt
                               </span>
                             )}
                           </div>
+                          {cost.recurrenceMonths && cost.recurrenceMonths.length > 0 && (
+                            <p className="text-xs text-white/50 mt-1">
+                              Monate: {cost.recurrenceMonths.map(m => monthNames[m - 1].slice(0, 3)).join(', ')}
+                            </p>
+                          )}
                           <p className={`text-2xl font-bold ${isPaid ? 'text-green-400' : 'text-red-400'}`}>
                             {formatCurrency(cost.amount)}
                           </p>
