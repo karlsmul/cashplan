@@ -306,7 +306,7 @@ const Analytics: React.FC = () => {
       </div>
 
       {/* Area Manager */}
-      <AreaManager areas={expenseAreas} />
+      <AreaManager areas={expenseAreas} expenses={yearExpenses} />
 
       {/* Area Monthly Stats */}
       <AreaMonthlyStats

@@ -3,5 +3,17 @@
     "allow": [
       "Bash(ls:*)"
     ]
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"$CLAUDE_NOTIFICATION_TITLE\" with title \"Claude Code\" sound name \"Glass\"'"
+          }
+        ]
+      }
+    ]
   }
 }

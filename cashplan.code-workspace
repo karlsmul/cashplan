@@ -12,5 +12,8 @@
 		{
 			"path": "../kreuzheben-v2"
 		}
-	]
+	],
+	"settings": {
+		"window.title": "💰 CASHPLAN - ${activeEditorShort}"
+	}
 }

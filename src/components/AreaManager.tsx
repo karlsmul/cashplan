@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
-import { ExpenseArea } from '../types';
+import React, { useState, useMemo } from 'react';
+import { ExpenseArea, Expense } from '../types';
 import { addExpenseArea, updateExpenseArea, deleteExpenseArea } from '../services/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { AREA_COLORS } from '../utils/areaMatching';
+import AutocompleteInput from './AutocompleteInput';
 
 interface AreaManagerProps {
   areas: ExpenseArea[];
+  expenses: Expense[];
 }
 
-const AreaManager: React.FC<AreaManagerProps> = ({ areas }) => {
+const AreaManager: React.FC<AreaManagerProps> = ({ areas, expenses }) => {
   const { user } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
   const [newAreaName, setNewAreaName] = useState('');
@@ -16,6 +18,20 @@ const AreaManager: React.FC<AreaManagerProps> = ({ areas }) => {
   const [newKeywords, setNewKeywords] = useState<{ [areaId: string]: string }>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Extrahiere einzigartige Beschreibungen aus Ausgaben für Autocomplete
+  const expenseDescriptions = useMemo(() => {
+    const descriptions = expenses.map(e => e.description);
+    // Zähle Häufigkeit
+    const frequency: { [key: string]: number } = {};
+    descriptions.forEach(desc => {
+      frequency[desc] = (frequency[desc] || 0) + 1;
+    });
+    // Sortiere nach Häufigkeit und entferne Duplikate
+    return Object.entries(frequency)
+      .sort((a, b) => b[1] - a[1])
+      .map(([desc]) => desc);
+  }, [expenses]);
 
   const handleAddArea = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,23 +223,19 @@ const AreaManager: React.FC<AreaManagerProps> = ({ areas }) => {
 
                   {/* Neues Keyword hinzufügen */}
                   <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newKeywords[area.id] || ''}
-                      onChange={(e) => setNewKeywords(prev => ({
-                        ...prev,
-                        [area.id]: e.target.value
-                      }))}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddKeyword(area.id);
-                        }
-                      }}
-                      placeholder="Schlagwort hinzufügen..."
-                      className="input flex-1 text-sm py-1"
-                      maxLength={50}
-                    />
+                    <div className="flex-1">
+                      <AutocompleteInput
+                        value={newKeywords[area.id] || ''}
+                        onChange={(value) => setNewKeywords(prev => ({
+                          ...prev,
+                          [area.id]: value
+                        }))}
+                        suggestions={expenseDescriptions}
+                        placeholder="Schlagwort hinzufügen..."
+                        className="input w-full text-sm py-1"
+                        maxLength={50}
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => handleAddKeyword(area.id)}
