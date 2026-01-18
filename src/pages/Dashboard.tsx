@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Expense, FixedCost, Income, UserSettings } from '../types';
 import {
@@ -10,6 +10,23 @@ import {
 import ExpenseForm from '../components/ExpenseForm';
 import WeekView from '../components/WeekView';
 import { getWeeksInMonth, formatCurrency, getMonthName } from '../utils/dateUtils';
+
+// Extrahiert die häufigsten Beschreibungen aus den Ausgaben
+const getFrequentDescriptions = (expenses: Expense[]): string[] => {
+  const descriptionCount = new Map<string, number>();
+
+  expenses.forEach(expense => {
+    const desc = expense.description.trim();
+    if (desc) {
+      descriptionCount.set(desc, (descriptionCount.get(desc) || 0) + 1);
+    }
+  });
+
+  // Nach Häufigkeit sortieren und nur die Beschreibungen zurückgeben
+  return Array.from(descriptionCount.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([description]) => description);
+};
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -90,6 +107,9 @@ const Dashboard: React.FC = () => {
     .reduce((sum, cost) => sum + cost.amount, 0);
 
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+
+  // Häufige Beschreibungen für Autocomplete
+  const descriptionSuggestions = useMemo(() => getFrequentDescriptions(expenses), [expenses]);
 
   const balance = totalIncome - monthlyFixedCosts - totalExpenses;
 
@@ -184,7 +204,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <ExpenseForm onSuccess={() => {}} />
+      <ExpenseForm onSuccess={() => {}} descriptionSuggestions={descriptionSuggestions} />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="card bg-gradient-to-br from-green-500/20 to-green-600/20 border-green-500/30">

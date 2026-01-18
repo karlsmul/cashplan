@@ -2,8 +2,14 @@ import React, { useState } from 'react';
 import { ExpenseCategory } from '../types';
 import { addExpense } from '../services/firestore';
 import { useAuth } from '../contexts/AuthContext';
+import AutocompleteInput from './AutocompleteInput';
 
-const ExpenseForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
+interface ExpenseFormProps {
+  onSuccess: () => void;
+  descriptionSuggestions?: string[];
+}
+
+const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, descriptionSuggestions = [] }) => {
   const { user } = useAuth();
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<ExpenseCategory>('Alltag');
@@ -91,10 +97,10 @@ const ExpenseForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
 
         <div>
           <label className="block text-sm font-medium mb-2">Beschreibung</label>
-          <input
-            type="text"
+          <AutocompleteInput
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={setDescription}
+            suggestions={descriptionSuggestions}
             className="input w-full"
             placeholder="z.B. Einkauf, Tanken..."
             maxLength={200}
