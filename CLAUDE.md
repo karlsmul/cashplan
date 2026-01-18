@@ -173,6 +173,12 @@ src/
 
 3. **Fuzzy-Matching**: Unicode-Normalisierung (NFD) + Regex entfernt diakritische Zeichen für akzent-insensitive Suche.
 
+4. **Responsive Dropdown-Positionierung**:
+   - Öffnet oberhalb des Inputs wenn unten weniger als 100px Platz ist
+   - Dynamische `maxHeight` basierend auf verfügbarem Viewport-Platz
+   - Weniger Vorschläge auf kleinen Bildschirmen (3 statt 5 bei < 600px Höhe)
+   - Verhindert dass das Eingabefeld verdeckt wird (wichtig für Mobile)
+
 ### Deployment
 
 - **Hosting**: Firebase Hosting
