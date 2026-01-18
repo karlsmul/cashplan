@@ -51,7 +51,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess, descriptionSuggest
   };
 
   return (
-    <form onSubmit={handleSubmit} className="card mb-6">
+    <form onSubmit={handleSubmit} className="card mb-6 relative z-10">
       <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
         Neue Ausgabe erfassen
       </h2>

@@ -22,8 +22,21 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Berechne Dropdown-Position basierend auf Input-Element
+  const updateDropdownPosition = () => {
+    if (inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width
+      });
+    }
+  };
 
   // Vorschläge filtern basierend auf Eingabe
   useEffect(() => {
@@ -53,6 +66,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
+    updateDropdownPosition();
     setShowSuggestions(true);
   };
 
@@ -90,11 +104,25 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   };
 
   const handleFocus = () => {
+    updateDropdownPosition();
     setShowSuggestions(true);
   };
 
+  // Position bei Scroll/Resize aktualisieren
+  useEffect(() => {
+    if (showSuggestions) {
+      const handlePositionUpdate = () => updateDropdownPosition();
+      window.addEventListener('scroll', handlePositionUpdate, true);
+      window.addEventListener('resize', handlePositionUpdate);
+      return () => {
+        window.removeEventListener('scroll', handlePositionUpdate, true);
+        window.removeEventListener('resize', handlePositionUpdate);
+      };
+    }
+  }, [showSuggestions]);
+
   return (
-    <div ref={wrapperRef} className="relative" style={{ isolation: 'isolate', zIndex: showSuggestions ? 9999 : 'auto' }}>
+    <div ref={wrapperRef} className="relative">
       <input
         ref={inputRef}
         type="text"
@@ -109,7 +137,14 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
         autoComplete="off"
       />
       {showSuggestions && filteredSuggestions.length > 0 && (
-        <ul className="absolute z-[9999] w-full mt-1 bg-slate-900/95 backdrop-blur-xl border border-purple-500/40 rounded-xl shadow-2xl shadow-purple-900/50 max-h-48 overflow-y-auto">
+        <ul
+          className="fixed z-[99999] bg-slate-900/98 backdrop-blur-xl border border-purple-500/40 rounded-xl shadow-2xl shadow-purple-900/50 max-h-48 overflow-y-auto"
+          style={{
+            top: dropdownPosition.top,
+            left: dropdownPosition.left,
+            width: dropdownPosition.width
+          }}
+        >
           {filteredSuggestions.map((suggestion, index) => (
             <li
               key={suggestion}
