@@ -94,7 +94,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   };
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} className="relative" style={{ isolation: 'isolate', zIndex: showSuggestions ? 9999 : 'auto' }}>
       <input
         ref={inputRef}
         type="text"
