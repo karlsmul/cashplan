@@ -34,7 +34,13 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
 }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [dropdownPosition, setDropdownPosition] = useState({
+    top: 0,
+    left: 0,
+    width: 0,
+    maxHeight: 200,
+    openAbove: false
+  });
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -46,9 +52,12 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
         normalizeForMatching(suggestion).includes(normalizedValue) &&
         normalizeForMatching(suggestion) !== normalizedValue
       );
-      return filtered.slice(0, 6);
+      // Weniger Vorschläge auf kleinen Bildschirmen
+      const maxItems = window.innerHeight < 600 ? 3 : 5;
+      return filtered.slice(0, maxItems);
     } else {
-      return suggestions.slice(0, 6);
+      const maxItems = window.innerHeight < 600 ? 3 : 5;
+      return suggestions.slice(0, maxItems);
     }
   }, [value, suggestions]);
 
@@ -56,10 +65,23 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   const updateDropdownPosition = () => {
     if (inputRef.current) {
       const rect = inputRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const spaceBelow = viewportHeight - rect.bottom;
+      const spaceAbove = rect.top;
+
+      // Berechne verfügbare Höhe (maximal 200px, aber nicht mehr als verfügbarer Platz)
+      const maxHeightBelow = Math.min(200, spaceBelow - 20);
+      const maxHeightAbove = Math.min(200, spaceAbove - 20);
+
+      // Öffne oberhalb wenn unten weniger als 100px Platz und oben mehr Platz ist
+      const openAbove = spaceBelow < 100 && spaceAbove > spaceBelow;
+
       setDropdownPosition({
-        top: rect.bottom + 4,
+        top: openAbove ? rect.top : rect.bottom + 4,
         left: rect.left,
-        width: rect.width
+        width: rect.width,
+        maxHeight: openAbove ? maxHeightAbove : maxHeightBelow,
+        openAbove
       });
     }
   };
@@ -136,12 +158,14 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   // Dropdown als Portal rendern (außerhalb des DOM-Baums)
   const dropdown = showSuggestions && filteredSuggestions.length > 0 && ReactDOM.createPortal(
     <ul
-      className="fixed z-[99999] bg-slate-800 border border-purple-500/50 rounded-lg shadow-xl shadow-purple-900/30 max-h-60 overflow-y-auto"
+      className="fixed z-[99999] bg-slate-800 border border-purple-500/50 rounded-lg shadow-xl shadow-purple-900/30 overflow-y-auto"
       style={{
-        top: dropdownPosition.top,
+        top: dropdownPosition.openAbove ? 'auto' : dropdownPosition.top,
+        bottom: dropdownPosition.openAbove ? `${window.innerHeight - dropdownPosition.top + 4}px` : 'auto',
         left: dropdownPosition.left,
         width: dropdownPosition.width,
-        minWidth: '200px'
+        minWidth: '200px',
+        maxHeight: `${dropdownPosition.maxHeight}px`
       }}
     >
       {filteredSuggestions.map((suggestion, index) => (
