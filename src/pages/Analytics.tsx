@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Expense, FixedCost, Income, ExpenseCategory, KeywordFilter } from '../types';
+import { Expense, FixedCost, Income, ExpenseCategory, KeywordFilter, ExpenseArea } from '../types';
 import {
   getExpenses,
   getFixedCosts,
@@ -8,9 +8,14 @@ import {
   subscribeToKeywordFilters,
   addKeywordFilter,
   updateKeywordFilter,
-  deleteKeywordFilter
+  deleteKeywordFilter,
+  subscribeToExpenseAreas,
+  getExpensesForYear
 } from '../services/firestore';
 import { formatCurrency, getMonthName } from '../utils/dateUtils';
+import AreaManager from '../components/AreaManager';
+import AreaMonthlyStats from '../components/AreaMonthlyStats';
+import AreaYearlyStats from '../components/AreaYearlyStats';
 
 const Analytics: React.FC = () => {
   const { user } = useAuth();
@@ -28,6 +33,8 @@ const Analytics: React.FC = () => {
   const [editingKeyword, setEditingKeyword] = useState<KeywordFilter | null>(null);
   const [editKeywordText, setEditKeywordText] = useState('');
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
+  const [expenseAreas, setExpenseAreas] = useState<ExpenseArea[]>([]);
+  const [yearExpenses, setYearExpenses] = useState<Expense[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -52,6 +59,23 @@ const Analytics: React.FC = () => {
     const unsubscribe = subscribeToKeywordFilters(user.uid, setKeywordFilters);
     return () => unsubscribe();
   }, [user]);
+
+  // ExpenseAreas laden
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = subscribeToExpenseAreas(user.uid, setExpenseAreas);
+    return () => unsubscribe();
+  }, [user]);
+
+  // Jahres-Expenses für Jahresstatistik laden
+  useEffect(() => {
+    if (!user) return;
+    const loadYearExpensesData = async () => {
+      const exp = await getExpensesForYear(user.uid, selectedYear);
+      setYearExpenses(exp);
+    };
+    loadYearExpensesData();
+  }, [user, selectedYear]);
 
   const selectedYearMonth = selectedYear * 100 + (selectedMonth + 1); // YYYYMM
 
@@ -280,6 +304,16 @@ const Analytics: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {/* Area Manager */}
+      <AreaManager areas={expenseAreas} />
+
+      {/* Area Monthly Stats */}
+      <AreaMonthlyStats
+        expenses={expenses}
+        areas={expenseAreas}
+        yearMonth={selectedYearMonth}
+      />
 
       {/* Category Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -515,7 +549,7 @@ const Analytics: React.FC = () => {
       {/* Year Overview */}
       <h2 className="text-3xl font-bold mb-6 text-purple-300">Jahresübersicht {selectedYear}</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="card bg-gradient-to-br from-green-500/20 to-green-600/20 border-green-500/30">
           <h3 className="text-sm font-semibold text-green-300 mb-2">Einnahmen (Jahr)</h3>
           <p className="text-3xl font-bold text-green-400">{formatCurrency(yearData.totalIncome)}</p>
@@ -539,6 +573,13 @@ const Analytics: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {/* Area Yearly Stats */}
+      <AreaYearlyStats
+        expenses={yearExpenses}
+        areas={expenseAreas}
+        year={selectedYear}
+      />
     </div>
   );
 };

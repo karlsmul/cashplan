@@ -12,7 +12,7 @@ import {
   FirestoreError
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Expense, FixedCost, Income, KeywordFilter, UserSettings } from '../types';
+import { Expense, FixedCost, Income, KeywordFilter, UserSettings, ExpenseArea } from '../types';
 
 // Error-Handler für Firestore-Operationen
 const handleFirestoreError = (error: unknown, operation: string): never => {
@@ -582,4 +582,101 @@ export const subscribeToUserSettings = (
       onError?.(new Error(`Fehler beim Laden der Einstellungen: ${error.message}`));
     }
   );
+};
+
+// Expense Areas (Bereiche für Ausgaben-Kategorisierung)
+export const addExpenseArea = async (area: Omit<ExpenseArea, 'id'>): Promise<string> => {
+  try {
+    const areasRef = collection(db, 'expenseAreas');
+    const docRef = await addDoc(areasRef, {
+      ...area,
+      createdAt: Timestamp.now()
+    });
+    return docRef.id;
+  } catch (error) {
+    return handleFirestoreError(error, 'addExpenseArea');
+  }
+};
+
+export const getExpenseAreas = async (userId: string): Promise<ExpenseArea[]> => {
+  try {
+    const areasRef = collection(db, 'expenseAreas');
+    const q = query(areasRef, where('userId', '==', userId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate()
+    })) as ExpenseArea[];
+  } catch (error) {
+    return handleFirestoreError(error, 'getExpenseAreas');
+  }
+};
+
+export const updateExpenseArea = async (areaId: string, data: Partial<ExpenseArea>): Promise<void> => {
+  try {
+    await updateDoc(doc(db, 'expenseAreas', areaId), data);
+  } catch (error) {
+    handleFirestoreError(error, 'updateExpenseArea');
+  }
+};
+
+export const deleteExpenseArea = async (areaId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'expenseAreas', areaId));
+  } catch (error) {
+    handleFirestoreError(error, 'deleteExpenseArea');
+  }
+};
+
+export const subscribeToExpenseAreas = (
+  userId: string,
+  callback: (areas: ExpenseArea[]) => void,
+  onError?: (error: Error) => void
+) => {
+  const areasRef = collection(db, 'expenseAreas');
+  const q = query(areasRef, where('userId', '==', userId));
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const areas = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate()
+      })) as ExpenseArea[];
+      // Nach Priorität sortieren (höchste zuerst)
+      areas.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+      callback(areas);
+    },
+    (error) => {
+      console.error('subscribeToExpenseAreas Fehler:', error);
+      onError?.(new Error(`Fehler beim Laden der Bereiche: ${error.message}`));
+    }
+  );
+};
+
+// Alle Expenses eines Jahres abrufen (für Jahresstatistik)
+export const getExpensesForYear = async (userId: string, year: number): Promise<Expense[]> => {
+  try {
+    const expensesRef = collection(db, 'expenses');
+    const startDate = new Date(year, 0, 1);
+    const endDate = new Date(year, 11, 31, 23, 59, 59, 999);
+
+    const q = query(
+      expensesRef,
+      where('userId', '==', userId),
+      where('date', '>=', Timestamp.fromDate(startDate)),
+      where('date', '<=', Timestamp.fromDate(endDate))
+    );
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      date: doc.data().date.toDate()
+    })) as Expense[];
+  } catch (error) {
+    return handleFirestoreError(error, 'getExpensesForYear');
+  }
 };

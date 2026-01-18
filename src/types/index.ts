@@ -85,3 +85,48 @@ export interface UserSettings {
   weeklyBudget: number; // Wochenlimit in Euro (default: 200)
   storageMode: StorageMode; // 'cloud' = Firebase, 'local' = nur lokal (IndexedDB)
 }
+
+// Bereiche für Ausgaben-Kategorisierung
+export interface ExpenseArea {
+  id: string;
+  name: string;           // z.B. "Lebensmittel"
+  keywords: string[];     // z.B. ["REWE", "Bäcker", "Edeka", "Lidl"]
+  color: string;          // Hex-Farbcode für Visualisierung
+  priority: number;       // Für Konfliktlösung bei Mehrfach-Match (höher = wichtiger)
+  userId: string;
+  createdAt?: Date;
+}
+
+// Statistik pro Bereich
+export interface AreaStatistics {
+  areaId: string;
+  areaName: string;
+  color: string;
+  totalAmount: number;
+  expenseCount: number;
+  expenses: Expense[];
+}
+
+// Monatliche Bereichsstatistik
+export interface MonthlyAreaStats {
+  yearMonth: number;
+  areas: AreaStatistics[];
+  unassigned: {
+    totalAmount: number;
+    expenseCount: number;
+    expenses: Expense[];
+  };
+}
+
+// Jahresstatistik pro Bereich
+export interface YearlyAreaStats {
+  year: number;
+  areas: {
+    areaId: string;
+    areaName: string;
+    color: string;
+    monthlyTotals: { month: number; amount: number }[];
+    yearTotal: number;
+  }[];
+  unassignedTotal: number;
+}
