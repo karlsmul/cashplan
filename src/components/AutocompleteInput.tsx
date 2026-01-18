@@ -27,12 +27,14 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Berechne Dropdown-Position basierend auf Input-Element
+  // WICHTIG: Bei position:fixed wird relativ zum Viewport positioniert,
+  // daher darf scrollY/scrollX NICHT addiert werden!
   const updateDropdownPosition = () => {
     if (inputRef.current) {
       const rect = inputRef.current.getBoundingClientRect();
       setDropdownPosition({
-        top: rect.bottom + window.scrollY,
-        left: rect.left + window.scrollX,
+        top: rect.bottom,
+        left: rect.left,
         width: rect.width
       });
     }
