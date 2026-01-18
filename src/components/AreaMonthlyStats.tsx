@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Expense, ExpenseArea } from '../types';
+import { Expense, ExpenseArea, FixedCost } from '../types';
 import { calculateMonthlyAreaStats } from '../utils/areaMatching';
 import { formatCurrency } from '../utils/dateUtils';
 
@@ -7,16 +7,18 @@ interface AreaMonthlyStatsProps {
   expenses: Expense[];
   areas: ExpenseArea[];
   yearMonth: number;
+  fixedCosts?: FixedCost[];
 }
 
 const AreaMonthlyStats: React.FC<AreaMonthlyStatsProps> = ({
   expenses,
   areas,
-  yearMonth
+  yearMonth,
+  fixedCosts = []
 }) => {
   const stats = useMemo(
-    () => calculateMonthlyAreaStats(expenses, areas, yearMonth),
-    [expenses, areas, yearMonth]
+    () => calculateMonthlyAreaStats(expenses, areas, yearMonth, fixedCosts),
+    [expenses, areas, yearMonth, fixedCosts]
   );
 
   // Gesamtsumme aller zugeordneten Ausgaben

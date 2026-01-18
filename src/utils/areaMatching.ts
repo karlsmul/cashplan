@@ -1,4 +1,4 @@
-import { Expense, ExpenseArea, AreaStatistics, MonthlyAreaStats, YearlyAreaStats } from '../types';
+import { Expense, ExpenseArea, AreaStatistics, MonthlyAreaStats, YearlyAreaStats, FixedCost } from '../types';
 
 /**
  * Normalisiert einen String für Fuzzy-Matching:
@@ -40,6 +40,30 @@ export const matchExpenseToArea = (
   }
 
   // Bei mehreren Matches: Höchste Priorität gewinnt
+  return matchingAreas.reduce((highest, current) =>
+    (current.priority || 0) > (highest.priority || 0) ? current : highest
+  );
+};
+
+/**
+ * Ordnet eine Fixkosten einem Bereich zu basierend auf Keyword-Matching
+ */
+export const matchFixedCostToArea = (
+  fixedCost: FixedCost,
+  areas: ExpenseArea[]
+): ExpenseArea | null => {
+  const nameNormalized = normalizeForMatching(fixedCost.name);
+
+  const matchingAreas = areas.filter(area =>
+    area.keywords.some(keyword =>
+      nameNormalized.includes(normalizeForMatching(keyword))
+    )
+  );
+
+  if (matchingAreas.length === 0) {
+    return null;
+  }
+
   return matchingAreas.reduce((highest, current) =>
     (current.priority || 0) > (highest.priority || 0) ? current : highest
   );
@@ -97,23 +121,39 @@ export const calculateAreaStatistics = (
 };
 
 /**
- * Berechnet monatliche Bereichsstatistiken
+ * Berechnet monatliche Bereichsstatistiken (inkl. Fixkosten)
  */
 export const calculateMonthlyAreaStats = (
   expenses: Expense[],
   areas: ExpenseArea[],
-  yearMonth: number
+  yearMonth: number,
+  fixedCosts: FixedCost[] = []
 ): MonthlyAreaStats => {
   const { byArea, unassigned } = groupExpensesByArea(expenses, areas);
 
+  // Fixkosten den Bereichen zuordnen
+  const fixedCostsByArea = new Map<string, number>();
+  areas.forEach(area => fixedCostsByArea.set(area.id, 0));
+
+  let unassignedFixedCosts = 0;
+  fixedCosts.forEach(fc => {
+    const matchedArea = matchFixedCostToArea(fc, areas);
+    if (matchedArea) {
+      fixedCostsByArea.set(matchedArea.id, (fixedCostsByArea.get(matchedArea.id) || 0) + fc.amount);
+    } else {
+      unassignedFixedCosts += fc.amount;
+    }
+  });
+
   const areaStats: AreaStatistics[] = areas.map(area => {
     const areaExpenses = byArea.get(area.id) || [];
+    const fixedCostAmount = fixedCostsByArea.get(area.id) || 0;
     return {
       areaId: area.id,
       areaName: area.name,
       color: area.color,
-      totalAmount: areaExpenses.reduce((sum, e) => sum + e.amount, 0),
-      expenseCount: areaExpenses.length,
+      totalAmount: areaExpenses.reduce((sum, e) => sum + e.amount, 0) + fixedCostAmount,
+      expenseCount: areaExpenses.length + (fixedCostAmount > 0 ? 1 : 0), // Fixkosten als 1 Posten zählen
       expenses: areaExpenses
     };
   });
@@ -122,7 +162,7 @@ export const calculateMonthlyAreaStats = (
     yearMonth,
     areas: areaStats, // Alle Bereiche anzeigen, auch mit 0€
     unassigned: {
-      totalAmount: unassigned.reduce((sum, e) => sum + e.amount, 0),
+      totalAmount: unassigned.reduce((sum, e) => sum + e.amount, 0) + unassignedFixedCosts,
       expenseCount: unassigned.length,
       expenses: unassigned
     }
@@ -130,12 +170,13 @@ export const calculateMonthlyAreaStats = (
 };
 
 /**
- * Berechnet Jahresstatistik: Summen pro Bereich pro Monat
+ * Berechnet Jahresstatistik: Summen pro Bereich pro Monat (inkl. Fixkosten)
  */
 export const calculateYearlyAreaStats = (
   expenses: Expense[],
   areas: ExpenseArea[],
-  year: number
+  year: number,
+  fixedCosts: FixedCost[] = []
 ): YearlyAreaStats => {
   // Gruppiere Expenses nach Monat
   const expensesByMonth = new Map<number, Expense[]>();
@@ -148,18 +189,42 @@ export const calculateYearlyAreaStats = (
     expensesByMonth.get(month)?.push(expense);
   });
 
+  // Gruppiere Fixkosten nach Monat
+  const fixedCostsByMonth = new Map<number, FixedCost[]>();
+  for (let month = 1; month <= 12; month++) {
+    fixedCostsByMonth.set(month, []);
+  }
+
+  fixedCosts.forEach(fc => {
+    const month = fc.yearMonth % 100; // YYYYMM -> MM
+    if (month >= 1 && month <= 12) {
+      fixedCostsByMonth.get(month)?.push(fc);
+    }
+  });
+
   // Berechne Statistiken pro Bereich
   const areaStats = areas.map(area => {
     const monthlyTotals: { month: number; amount: number }[] = [];
     let yearTotal = 0;
 
     for (let month = 1; month <= 12; month++) {
+      // Variable Ausgaben
       const monthExpenses = expensesByMonth.get(month) || [];
       const areaExpenses = monthExpenses.filter(e => {
         const matched = matchExpenseToArea(e, areas);
         return matched?.id === area.id;
       });
-      const monthAmount = areaExpenses.reduce((sum, e) => sum + e.amount, 0);
+      let monthAmount = areaExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+      // Fixkosten hinzufügen
+      const monthFixedCosts = fixedCostsByMonth.get(month) || [];
+      monthFixedCosts.forEach(fc => {
+        const matched = matchFixedCostToArea(fc, areas);
+        if (matched?.id === area.id) {
+          monthAmount += fc.amount;
+        }
+      });
+
       monthlyTotals.push({ month, amount: monthAmount });
       yearTotal += monthAmount;
     }
@@ -175,7 +240,14 @@ export const calculateYearlyAreaStats = (
 
   // Berechne nicht zugeordnete Ausgaben
   const { unassigned } = groupExpensesByArea(expenses, areas);
-  const unassignedTotal = unassigned.reduce((sum, e) => sum + e.amount, 0);
+  let unassignedTotal = unassigned.reduce((sum, e) => sum + e.amount, 0);
+
+  // Nicht zugeordnete Fixkosten
+  fixedCosts.forEach(fc => {
+    if (!matchFixedCostToArea(fc, areas)) {
+      unassignedTotal += fc.amount;
+    }
+  });
 
   return {
     year,

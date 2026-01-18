@@ -313,6 +313,7 @@ const Analytics: React.FC = () => {
         expenses={expenses}
         areas={expenseAreas}
         yearMonth={selectedYearMonth}
+        fixedCosts={fixedCosts.filter(fc => fc.yearMonth === selectedYearMonth)}
       />
 
       {/* Category Breakdown */}
@@ -579,6 +580,7 @@ const Analytics: React.FC = () => {
         expenses={yearExpenses}
         areas={expenseAreas}
         year={selectedYear}
+        fixedCosts={fixedCosts.filter(fc => Math.floor(fc.yearMonth / 100) === selectedYear)}
       />
     </div>
   );

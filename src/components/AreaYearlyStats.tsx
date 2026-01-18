@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Expense, ExpenseArea } from '../types';
+import { Expense, ExpenseArea, FixedCost } from '../types';
 import { calculateYearlyAreaStats } from '../utils/areaMatching';
 import { formatCurrency } from '../utils/dateUtils';
 
@@ -7,6 +7,7 @@ interface AreaYearlyStatsProps {
   expenses: Expense[];
   areas: ExpenseArea[];
   year: number;
+  fixedCosts?: FixedCost[];
 }
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
@@ -14,11 +15,12 @@ const MONTH_NAMES = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'S
 const AreaYearlyStats: React.FC<AreaYearlyStatsProps> = ({
   expenses,
   areas,
-  year
+  year,
+  fixedCosts = []
 }) => {
   const stats = useMemo(
-    () => calculateYearlyAreaStats(expenses, areas, year),
-    [expenses, areas, year]
+    () => calculateYearlyAreaStats(expenses, areas, year, fixedCosts),
+    [expenses, areas, year, fixedCosts]
   );
 
   if (areas.length === 0 || stats.areas.length === 0) {
