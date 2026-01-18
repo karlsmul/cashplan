@@ -109,15 +109,15 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
         autoComplete="off"
       />
       {showSuggestions && filteredSuggestions.length > 0 && (
-        <ul className="absolute z-50 w-full mt-1 bg-slate-800 border border-purple-500/30 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+        <ul className="absolute z-[9999] w-full mt-1 bg-slate-900/95 backdrop-blur-xl border border-purple-500/40 rounded-xl shadow-2xl shadow-purple-900/50 max-h-48 overflow-y-auto">
           {filteredSuggestions.map((suggestion, index) => (
             <li
               key={suggestion}
               onClick={() => handleSuggestionClick(suggestion)}
-              className={`px-4 py-2 cursor-pointer transition-colors ${
+              className={`px-4 py-3 cursor-pointer transition-all duration-150 border-b border-white/5 last:border-b-0 ${
                 index === highlightedIndex
-                  ? 'bg-purple-500/30 text-white'
-                  : 'text-white/80 hover:bg-purple-500/20'
+                  ? 'bg-gradient-to-r from-purple-500/40 to-pink-500/30 text-white'
+                  : 'text-white/90 hover:bg-gradient-to-r hover:from-purple-500/20 hover:to-pink-500/10'
               }`}
             >
               {suggestion}
