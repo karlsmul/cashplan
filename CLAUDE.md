@@ -80,7 +80,7 @@ Configured via `vite-plugin-pwa`. Service worker handles caching:
 
 ---
 
-## Projekt-Backup (Stand: 18. Januar 2026)
+## Projekt-Backup (Stand: 18. Januar 2026, Abend)
 
 ### Aktuelle Features
 
@@ -96,12 +96,13 @@ Configured via `vite-plugin-pwa`. Service worker handles caching:
 #### 2. Analytics-Seite
 - Monats- und Jahresübersicht
 - Keyword-Filter zum Ausblenden bestimmter Ausgaben
-- **Bereichs-basierte Statistik** (NEU):
-  - Benutzerdefinierte Bereiche (z.B. "Lebensmittel", "Transport")
+- **Bereichs-basierte Statistik**:
+  - Benutzerdefinierte Bereiche (z.B. "Lebensmittel", "Transport", "Sparen")
   - Keywords pro Bereich (z.B. "REWE", "Edeka" → Lebensmittel)
-  - Automatische Zuordnung von Ausgaben zu Bereichen
+  - Automatische Zuordnung von Ausgaben UND Fixkosten zu Bereichen
   - Monatsstatistik pro Bereich mit Farbcodierung
   - Jahresübersicht: Summen pro Bereich pro Monat
+  - Bereiche mit 0€ werden angezeigt (neu angelegte Bereiche sichtbar)
 
 #### 3. Einstellungen
 - Wahl zwischen Cloud- und lokaler Speicherung
@@ -153,9 +154,10 @@ src/
 **areaMatching.ts:**
 - `normalizeForMatching(text)` - Akzent-insensitive Normalisierung
 - `matchExpenseToArea(expense, areas)` - Ordnet Ausgabe einem Bereich zu
+- `matchFixedCostToArea(fixedCost, areas)` - Ordnet Fixkosten einem Bereich zu
 - `groupExpensesByArea(expenses, areas)` - Gruppiert alle Ausgaben
-- `calculateMonthlyAreaStats(expenses, areas, yearMonth)` - Monatsstatistik
-- `calculateYearlyAreaStats(expenses, areas, year)` - Jahresstatistik
+- `calculateMonthlyAreaStats(expenses, areas, yearMonth, fixedCosts)` - Monatsstatistik inkl. Fixkosten
+- `calculateYearlyAreaStats(expenses, areas, year, fixedCosts)` - Jahresstatistik inkl. Fixkosten
 
 ### Design-System
 
@@ -178,6 +180,12 @@ src/
    - Dynamische `maxHeight` basierend auf verfügbarem Viewport-Platz
    - Weniger Vorschläge auf kleinen Bildschirmen (3 statt 5 bei < 600px Höhe)
    - Verhindert dass das Eingabefeld verdeckt wird (wichtig für Mobile)
+
+5. **Fixkosten in Bereichs-Statistik**: Fixkosten werden wie Ausgaben den Bereichen zugeordnet
+   - `matchFixedCostToArea()` matched Fixkosten-Namen gegen Bereichs-Keywords
+   - Ermöglicht z.B. Bereich "Sparen" mit Keyword "spar" → matched "ETF Sparplan"
+
+6. **Einheitliches Logo**: Beide Seiten (Login und Header) verwenden `/logo.png` mit gleichem Styling
 
 ### Deployment
 
