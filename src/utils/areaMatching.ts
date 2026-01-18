@@ -1,24 +1,37 @@
 import { Expense, ExpenseArea, AreaStatistics, MonthlyAreaStats, YearlyAreaStats } from '../types';
 
 /**
+ * Normalisiert einen String für Fuzzy-Matching:
+ * - Kleinschreibung
+ * - Entfernt Akzente (é → e, ä → a, etc.)
+ */
+export const normalizeForMatching = (text: string): string => {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, ''); // Entfernt diakritische Zeichen
+};
+
+/**
  * Ordnet eine Ausgabe einem Bereich zu basierend auf Keyword-Matching
  *
  * Matching-Regeln:
  * 1. Case-insensitive Suche
- * 2. Teilstring-Match (z.B. "REWE" matched "REWE City Berlin")
- * 3. Bei mehreren Matches: Bereich mit höchster Priorität gewinnt
- * 4. Kein Match: Gibt null zurück
+ * 2. Akzent-insensitive Suche (Café = Cafe = café)
+ * 3. Teilstring-Match (z.B. "REWE" matched "REWE City Berlin")
+ * 4. Bei mehreren Matches: Bereich mit höchster Priorität gewinnt
+ * 5. Kein Match: Gibt null zurück
  */
 export const matchExpenseToArea = (
   expense: Expense,
   areas: ExpenseArea[]
 ): ExpenseArea | null => {
-  const descriptionLower = expense.description.toLowerCase();
+  const descriptionNormalized = normalizeForMatching(expense.description);
 
   // Finde alle passenden Bereiche
   const matchingAreas = areas.filter(area =>
     area.keywords.some(keyword =>
-      descriptionLower.includes(keyword.toLowerCase())
+      descriptionNormalized.includes(normalizeForMatching(keyword))
     )
   );
 

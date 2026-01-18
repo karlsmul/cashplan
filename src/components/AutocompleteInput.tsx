@@ -1,4 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
+
+/**
+ * Normalisiert einen String für Fuzzy-Matching:
+ * - Kleinschreibung
+ * - Entfernt Akzente (é → e, ä → a, etc.)
+ */
+const normalizeForMatching = (text: string): string => {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
 
 interface AutocompleteInputProps {
   value: string;
@@ -19,149 +31,96 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   required,
   className = ''
 }) => {
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Berechne Dropdown-Position basierend auf Input-Element
-  // WICHTIG: Bei position:fixed wird relativ zum Viewport positioniert,
-  // daher darf scrollY/scrollX NICHT addiert werden!
-  const updateDropdownPosition = () => {
-    if (inputRef.current) {
-      const rect = inputRef.current.getBoundingClientRect();
-      setDropdownPosition({
-        top: rect.bottom,
-        left: rect.left,
-        width: rect.width
-      });
-    }
-  };
+  // Finde den besten Vorschlag basierend auf der aktuellen Eingabe
+  const suggestion = useMemo(() => {
+    if (!value || value.length === 0) return null;
 
-  // Vorschläge filtern basierend auf Eingabe
-  useEffect(() => {
-    if (value.length > 0) {
-      const filtered = suggestions.filter(suggestion =>
-        suggestion.toLowerCase().includes(value.toLowerCase()) &&
-        suggestion.toLowerCase() !== value.toLowerCase()
-      );
-      setFilteredSuggestions(filtered.slice(0, 5)); // Max 5 Vorschläge
-    } else {
-      // Bei leerem Input die häufigsten Vorschläge zeigen
-      setFilteredSuggestions(suggestions.slice(0, 5));
-    }
-    setHighlightedIndex(-1);
+    const normalizedValue = normalizeForMatching(value);
+
+    // Finde Vorschläge die mit dem eingegebenen Text beginnen (priorisiert)
+    const startsWithMatch = suggestions.find(s =>
+      normalizeForMatching(s).startsWith(normalizedValue) &&
+      normalizeForMatching(s) !== normalizedValue
+    );
+
+    if (startsWithMatch) return startsWithMatch;
+
+    // Falls kein "startsWith"-Match, suche nach "includes"-Match
+    const includesMatch = suggestions.find(s =>
+      normalizeForMatching(s).includes(normalizedValue) &&
+      normalizeForMatching(s) !== normalizedValue
+    );
+
+    return includesMatch || null;
   }, [value, suggestions]);
 
-  // Klick außerhalb schließt Vorschläge
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  // Der angezeigte Vorschlagstext (grau, nach dem eingegebenen Text)
+  const suggestionSuffix = useMemo(() => {
+    if (!suggestion || !value) return '';
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(e.target.value);
-    updateDropdownPosition();
-    setShowSuggestions(true);
-  };
+    // Finde wo der eingegebene Text im Vorschlag vorkommt
+    const normalizedValue = normalizeForMatching(value);
+    const normalizedSuggestion = normalizeForMatching(suggestion);
+    const index = normalizedSuggestion.indexOf(normalizedValue);
 
-  const handleSuggestionClick = (suggestion: string) => {
-    onChange(suggestion);
-    setShowSuggestions(false);
-    inputRef.current?.focus();
-  };
+    if (index === 0) {
+      // Vorschlag beginnt mit der Eingabe - zeige den Rest
+      return suggestion.slice(value.length);
+    }
+
+    return '';
+  }, [suggestion, value]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showSuggestions || filteredSuggestions.length === 0) return;
-
-    switch (e.key) {
-      case 'ArrowDown':
+    // Tab oder Pfeil-Rechts übernimmt den Vorschlag
+    if ((e.key === 'Tab' || e.key === 'ArrowRight') && suggestionSuffix) {
+      // Nur wenn Cursor am Ende des Inputs ist
+      if (inputRef.current && inputRef.current.selectionStart === value.length) {
         e.preventDefault();
-        setHighlightedIndex(prev =>
-          prev < filteredSuggestions.length - 1 ? prev + 1 : prev
-        );
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        setHighlightedIndex(prev => (prev > 0 ? prev - 1 : -1));
-        break;
-      case 'Enter':
-        if (highlightedIndex >= 0) {
-          e.preventDefault();
-          handleSuggestionClick(filteredSuggestions[highlightedIndex]);
-        }
-        break;
-      case 'Escape':
-        setShowSuggestions(false);
-        setHighlightedIndex(-1);
-        break;
+        onChange(value + suggestionSuffix);
+      }
     }
   };
 
-  const handleFocus = () => {
-    updateDropdownPosition();
-    setShowSuggestions(true);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange(e.target.value);
   };
-
-  // Position bei Scroll/Resize aktualisieren
-  useEffect(() => {
-    if (showSuggestions) {
-      const handlePositionUpdate = () => updateDropdownPosition();
-      window.addEventListener('scroll', handlePositionUpdate, true);
-      window.addEventListener('resize', handlePositionUpdate);
-      return () => {
-        window.removeEventListener('scroll', handlePositionUpdate, true);
-        window.removeEventListener('resize', handlePositionUpdate);
-      };
-    }
-  }, [showSuggestions]);
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div className="relative">
+      {/* Unsichtbarer Layer für den Vorschlag */}
+      <div
+        className={`absolute inset-0 pointer-events-none flex items-center ${className}`}
+        style={{
+          background: 'transparent',
+          border: 'transparent',
+          color: 'transparent'
+        }}
+      >
+        <span className="invisible">{value}</span>
+        {isFocused && suggestionSuffix && (
+          <span className="text-white/30">{suggestionSuffix}</span>
+        )}
+      </div>
+
+      {/* Eigentliches Input-Feld */}
       <input
         ref={inputRef}
         type="text"
         value={value}
-        onChange={handleInputChange}
+        onChange={handleChange}
         onKeyDown={handleKeyDown}
-        onFocus={handleFocus}
-        className={className}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        className={`${className} bg-transparent relative`}
         placeholder={placeholder}
         maxLength={maxLength}
         required={required}
         autoComplete="off"
       />
-      {showSuggestions && filteredSuggestions.length > 0 && (
-        <ul
-          className="fixed z-[99999] bg-slate-900/98 backdrop-blur-xl border border-purple-500/40 rounded-xl shadow-2xl shadow-purple-900/50 max-h-48 overflow-y-auto"
-          style={{
-            top: dropdownPosition.top,
-            left: dropdownPosition.left,
-            width: dropdownPosition.width
-          }}
-        >
-          {filteredSuggestions.map((suggestion, index) => (
-            <li
-              key={suggestion}
-              onClick={() => handleSuggestionClick(suggestion)}
-              className={`px-4 py-3 cursor-pointer transition-all duration-150 border-b border-white/5 last:border-b-0 ${
-                index === highlightedIndex
-                  ? 'bg-gradient-to-r from-purple-500/40 to-pink-500/30 text-white'
-                  : 'text-white/90 hover:bg-gradient-to-r hover:from-purple-500/20 hover:to-pink-500/10'
-              }`}
-            >
-              {suggestion}
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 };
