@@ -77,3 +77,111 @@ Configured via `vite-plugin-pwa`. Service worker handles caching:
 - Firebase API: NetworkFirst (7 days)
 - Google Fonts: CacheFirst (1 year)
 - Auto-updates in background
+
+---
+
+## Projekt-Backup (Stand: 18. Januar 2026)
+
+### Aktuelle Features
+
+#### 1. Ausgabenverwaltung (Dashboard)
+- Ausgaben erfassen mit Betrag, Datum, Kategorie (Alltag/Sonderposten), Beschreibung
+- **AutocompleteInput**: Dropdown mit Vorschlägen basierend auf bisherigen Ausgaben
+  - React Portal für korrektes Z-Index-Verhalten
+  - Fuzzy-Matching (Akzent-insensitiv: "cafe" = "Café")
+  - Tastaturnavigation (Pfeiltasten, Enter, Escape)
+- Fixkosten mit Wiederholungsintervall (monatlich, einmalig)
+- Einnahmen pro Monat
+
+#### 2. Analytics-Seite
+- Monats- und Jahresübersicht
+- Keyword-Filter zum Ausblenden bestimmter Ausgaben
+- **Bereichs-basierte Statistik** (NEU):
+  - Benutzerdefinierte Bereiche (z.B. "Lebensmittel", "Transport")
+  - Keywords pro Bereich (z.B. "REWE", "Edeka" → Lebensmittel)
+  - Automatische Zuordnung von Ausgaben zu Bereichen
+  - Monatsstatistik pro Bereich mit Farbcodierung
+  - Jahresübersicht: Summen pro Bereich pro Monat
+
+#### 3. Einstellungen
+- Wahl zwischen Cloud- und lokaler Speicherung
+- Info-Seite zur Datenspeicherung
+
+### Firestore Collections
+
+| Collection | Key Fields |
+|------------|------------|
+| `expenses` | amount, category, description, date, userId |
+| `fixedCosts` | name, amount, yearMonth, paidMonths, interval ('monthly'/'once') |
+| `incomes` | name, amount, yearMonth, userId |
+| `keywordFilters` | keyword, userId, createdAt |
+| `userSettings` | storageType ('cloud'/'local'), userId |
+| `expenseAreas` | name, keywords[], color, priority, userId, createdAt |
+
+### Komponenten-Struktur
+
+```
+src/
+├── components/
+│   ├── AutocompleteInput.tsx   # Dropdown mit Fuzzy-Matching & Portal
+│   ├── AreaManager.tsx         # Bereiche verwalten (CRUD)
+│   ├── AreaMonthlyStats.tsx    # Monatsstatistik nach Bereichen
+│   ├── AreaYearlyStats.tsx     # Jahresübersicht nach Bereichen
+│   ├── ExpenseForm.tsx         # Ausgabe erfassen
+│   ├── ExpenseList.tsx         # Ausgabenliste
+│   ├── FixedCostManager.tsx    # Fixkosten verwalten
+│   └── IncomeManager.tsx       # Einnahmen verwalten
+├── pages/
+│   ├── Dashboard.tsx           # Hauptseite mit Ausgabenerfassung
+│   ├── Analytics.tsx           # Statistiken & Bereiche
+│   ├── Settings.tsx            # Einstellungen
+│   └── Login.tsx               # Authentifizierung
+├── contexts/
+│   └── AuthContext.tsx         # Firebase Auth State
+├── services/
+│   ├── firebase.ts             # Firebase Init
+│   └── firestore.ts            # Alle Firestore CRUD-Operationen
+├── utils/
+│   ├── areaMatching.ts         # Bereichs-Matching & Statistik-Berechnung
+│   └── dateUtils.ts            # Datum/Währungsformatierung
+└── types/
+    └── index.ts                # TypeScript Interfaces
+```
+
+### Wichtige Utility-Funktionen
+
+**areaMatching.ts:**
+- `normalizeForMatching(text)` - Akzent-insensitive Normalisierung
+- `matchExpenseToArea(expense, areas)` - Ordnet Ausgabe einem Bereich zu
+- `groupExpensesByArea(expenses, areas)` - Gruppiert alle Ausgaben
+- `calculateMonthlyAreaStats(expenses, areas, yearMonth)` - Monatsstatistik
+- `calculateYearlyAreaStats(expenses, areas, year)` - Jahresstatistik
+
+### Design-System
+
+- **Farbschema**: Dark Mode mit Purple/Pink Gradienten
+- **Glassmorphism**: `backdrop-blur`, transparente Hintergründe
+- **Bereichsfarben**: Vordefinierte Palette in `AREA_COLORS`
+  - Grün (#22c55e), Blau (#3b82f6), Lila (#a855f7), Rosa (#ec4899)
+  - Orange (#f97316), Türkis (#14b8a6), Gelb (#eab308), Rot (#ef4444)
+
+### Bekannte technische Details
+
+1. **Portal für Dropdowns**: AutocompleteInput nutzt `ReactDOM.createPortal` um das Dropdown direkt in `document.body` zu rendern. Das verhindert Z-Index-Probleme.
+
+2. **Viewport-Koordinaten**: Bei `position: fixed` werden `getBoundingClientRect()` Werte direkt verwendet (NICHT `+ window.scrollY`).
+
+3. **Fuzzy-Matching**: Unicode-Normalisierung (NFD) + Regex entfernt diakritische Zeichen für akzent-insensitive Suche.
+
+### Deployment
+
+- **Hosting**: Firebase Hosting
+- **CI/CD**: GitHub Actions auf Push zu `main`
+- **Firestore Rules**: In `firestore.rules` - manuelles Deploy via `firebase deploy --only firestore:rules`
+
+### Nächste mögliche Features
+
+- [ ] Export/Import von Daten
+- [ ] Budgets pro Bereich setzen
+- [ ] Wiederkehrende Ausgaben
+- [ ] Diagramme/Charts für Visualisierung
