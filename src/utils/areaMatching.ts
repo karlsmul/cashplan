@@ -120,7 +120,7 @@ export const calculateMonthlyAreaStats = (
 
   return {
     yearMonth,
-    areas: areaStats.filter(a => a.expenseCount > 0), // Nur Bereiche mit Ausgaben
+    areas: areaStats, // Alle Bereiche anzeigen, auch mit 0€
     unassigned: {
       totalAmount: unassigned.reduce((sum, e) => sum + e.amount, 0),
       expenseCount: unassigned.length,
@@ -179,7 +179,7 @@ export const calculateYearlyAreaStats = (
 
   return {
     year,
-    areas: areaStats.filter(a => a.yearTotal > 0),
+    areas: areaStats, // Alle Bereiche anzeigen, auch mit 0€
     unassignedTotal
   };
 };

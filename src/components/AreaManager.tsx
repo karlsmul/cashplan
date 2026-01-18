@@ -130,8 +130,8 @@ const AreaManager: React.FC<AreaManagerProps> = ({ areas, expenses }) => {
       {isExpanded && (
         <div className="mt-4 space-y-4">
           {/* Formular für neuen Bereich */}
-          <form onSubmit={handleAddArea} className="flex gap-2 items-end">
-            <div className="flex-1">
+          <form onSubmit={handleAddArea} className="space-y-3">
+            <div>
               <label className="block text-sm font-medium mb-1">Neuer Bereich</label>
               <input
                 type="text"
@@ -142,29 +142,31 @@ const AreaManager: React.FC<AreaManagerProps> = ({ areas, expenses }) => {
                 maxLength={50}
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Farbe</label>
-              <div className="flex gap-1">
-                {AREA_COLORS.map(color => (
-                  <button
-                    key={color}
-                    type="button"
-                    onClick={() => setNewAreaColor(color)}
-                    className={`w-8 h-8 rounded-lg transition-transform ${
-                      newAreaColor === color ? 'scale-110 ring-2 ring-white' : 'hover:scale-105'
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-1">Farbe</label>
+                <div className="flex gap-1 flex-wrap">
+                  {AREA_COLORS.map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setNewAreaColor(color)}
+                      className={`w-7 h-7 rounded-lg transition-transform ${
+                        newAreaColor === color ? 'scale-110 ring-2 ring-white' : 'hover:scale-105'
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
               </div>
+              <button
+                type="submit"
+                disabled={loading || !newAreaName.trim()}
+                className="btn-primary h-10 px-4 mt-5"
+              >
+                + Hinzufügen
+              </button>
             </div>
-            <button
-              type="submit"
-              disabled={loading || !newAreaName.trim()}
-              className="btn-primary h-10"
-            >
-              +
-            </button>
           </form>
 
           {error && (
