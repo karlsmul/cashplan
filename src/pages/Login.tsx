@@ -274,7 +274,7 @@ const Login: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="card max-w-md w-full">
         <div className="text-center mb-8">
-          <img src="/logo.svg" alt="Cashplan Logo" className="w-24 h-24 mx-auto mb-4" />
+          <img src="/logo.png" alt="Cashplan Logo" className="w-24 h-24 mx-auto mb-4 rounded-full object-cover shadow-2xl" />
           <h2 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 via-green-400 to-blue-400 bg-clip-text text-transparent mb-2">
             Cashplan
           </h2>
