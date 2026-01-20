@@ -80,7 +80,7 @@ Configured via `vite-plugin-pwa`. Service worker handles caching:
 
 ---
 
-## Projekt-Backup (Stand: 18. Januar 2026, Abend)
+## Projekt-Backup (Stand: 20. Januar 2026)
 
 ### Aktuelle Features
 
@@ -103,6 +103,12 @@ Configured via `vite-plugin-pwa`. Service worker handles caching:
   - Monatsstatistik pro Bereich mit Farbcodierung
   - Jahresübersicht: Summen pro Bereich pro Monat
   - Bereiche mit 0€ werden angezeigt (neu angelegte Bereiche sichtbar)
+- **Klappbare Sektionen** für übersichtlichere Darstellung:
+  - Alltag / Sonderposten (zeigt Anzahl und Gesamtsumme im Header)
+  - Ausgaben nach Bereichen (zeigt Gesamtsumme im Header)
+  - Schlagworte verwalten (zeigt Anzahl der Schlagworte)
+  - Gefundene Ausgaben (zeigt Gesamtsumme)
+  - Alle Sektionen standardmäßig eingeklappt, per Klick auf-/zuklappbar
 
 #### 3. Einstellungen
 - Wahl zwischen Cloud- und lokaler Speicherung
@@ -126,7 +132,7 @@ src/
 ├── components/
 │   ├── AutocompleteInput.tsx   # Dropdown mit Fuzzy-Matching & Portal
 │   ├── AreaManager.tsx         # Bereiche verwalten (CRUD)
-│   ├── AreaMonthlyStats.tsx    # Monatsstatistik nach Bereichen
+│   ├── AreaMonthlyStats.tsx    # Monatsstatistik nach Bereichen (klappbar via Props)
 │   ├── AreaYearlyStats.tsx     # Jahresübersicht nach Bereichen
 │   ├── ExpenseForm.tsx         # Ausgabe erfassen
 │   ├── ExpenseList.tsx         # Ausgabenliste
@@ -186,6 +192,13 @@ src/
    - Ermöglicht z.B. Bereich "Sparen" mit Keyword "spar" → matched "ETF Sparplan"
 
 6. **Einheitliches Logo**: Beide Seiten (Login und Header) verwenden `/logo.png` mit gleichem Styling
+
+7. **Klappbare Sektionen Pattern**:
+   - State: `const [sectionExpanded, setSectionExpanded] = useState(false);`
+   - Header mit onClick-Handler und Pfeil-Indikator (▲/▼)
+   - Inhalt nur rendern wenn `sectionExpanded === true`
+   - Gesamtsumme/Anzahl immer im Header sichtbar
+   - Hover-Effekt: `hover:bg-white/5` für Feedback
 
 ### Deployment
 
