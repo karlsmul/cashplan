@@ -105,6 +105,7 @@ export interface AreaStatistics {
   totalAmount: number;
   expenseCount: number;
   expenses: Expense[];
+  fixedCosts: FixedCost[];
 }
 
 // Monatliche Bereichsstatistik

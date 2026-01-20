@@ -115,7 +115,8 @@ export const calculateAreaStatistics = (
       color: area.color,
       totalAmount: areaExpenses.reduce((sum, e) => sum + e.amount, 0),
       expenseCount: areaExpenses.length,
-      expenses: areaExpenses
+      expenses: areaExpenses,
+      fixedCosts: []
     };
   });
 };
@@ -132,38 +133,42 @@ export const calculateMonthlyAreaStats = (
   const { byArea, unassigned } = groupExpensesByArea(expenses, areas);
 
   // Fixkosten den Bereichen zuordnen
-  const fixedCostsByArea = new Map<string, number>();
-  areas.forEach(area => fixedCostsByArea.set(area.id, 0));
+  const fixedCostsByArea = new Map<string, FixedCost[]>();
+  areas.forEach(area => fixedCostsByArea.set(area.id, []));
 
-  let unassignedFixedCosts = 0;
+  const unassignedFixedCosts: FixedCost[] = [];
   fixedCosts.forEach(fc => {
     const matchedArea = matchFixedCostToArea(fc, areas);
     if (matchedArea) {
-      fixedCostsByArea.set(matchedArea.id, (fixedCostsByArea.get(matchedArea.id) || 0) + fc.amount);
+      fixedCostsByArea.get(matchedArea.id)?.push(fc);
     } else {
-      unassignedFixedCosts += fc.amount;
+      unassignedFixedCosts.push(fc);
     }
   });
 
   const areaStats: AreaStatistics[] = areas.map(area => {
     const areaExpenses = byArea.get(area.id) || [];
-    const fixedCostAmount = fixedCostsByArea.get(area.id) || 0;
+    const areaFixedCosts = fixedCostsByArea.get(area.id) || [];
+    const fixedCostAmount = areaFixedCosts.reduce((sum, fc) => sum + fc.amount, 0);
     return {
       areaId: area.id,
       areaName: area.name,
       color: area.color,
       totalAmount: areaExpenses.reduce((sum, e) => sum + e.amount, 0) + fixedCostAmount,
-      expenseCount: areaExpenses.length + (fixedCostAmount > 0 ? 1 : 0), // Fixkosten als 1 Posten zählen
-      expenses: areaExpenses
+      expenseCount: areaExpenses.length + areaFixedCosts.length,
+      expenses: areaExpenses,
+      fixedCosts: areaFixedCosts
     };
   });
+
+  const unassignedFixedCostAmount = unassignedFixedCosts.reduce((sum, fc) => sum + fc.amount, 0);
 
   return {
     yearMonth,
     areas: areaStats, // Alle Bereiche anzeigen, auch mit 0€
     unassigned: {
-      totalAmount: unassigned.reduce((sum, e) => sum + e.amount, 0) + unassignedFixedCosts,
-      expenseCount: unassigned.length,
+      totalAmount: unassigned.reduce((sum, e) => sum + e.amount, 0) + unassignedFixedCostAmount,
+      expenseCount: unassigned.length + unassignedFixedCosts.length,
       expenses: unassigned
     }
   };
