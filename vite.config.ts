@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['logo.svg'],
+      includeAssets: ['logo.png'],
       manifest: {
         name: 'Cashplan - Get Your Cash Together',
         short_name: 'Cashplan',
@@ -20,9 +20,9 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: '/logo.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: '/logo.png',
+            sizes: '512x512',
+            type: 'image/png',
             purpose: 'any maskable'
           }
         ]
