@@ -24,6 +24,8 @@ const Analytics: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState(2026);
   const [alltagSortBy, setAlltagSortBy] = useState<'date' | 'amount-desc' | 'amount-asc'>('date');
   const [sonderpostenSortBy, setSonderpostenSortBy] = useState<'date' | 'amount-desc' | 'amount-asc'>('date');
+  const [alltagExpanded, setAlltagExpanded] = useState(false);
+  const [sonderpostenExpanded, setSonderpostenExpanded] = useState(false);
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
@@ -319,83 +321,101 @@ const Analytics: React.FC = () => {
       {/* Category Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-blue-300">Alltag ({expensesByCategory.Alltag.length})</h3>
-            <select
-              value={alltagSortBy}
-              onChange={(e) => setAlltagSortBy(e.target.value as 'date' | 'amount-desc' | 'amount-asc')}
-              className="select text-sm"
-            >
-              <option value="date">Nach Datum</option>
-              <option value="amount-desc">Betrag ↓</option>
-              <option value="amount-asc">Betrag ↑</option>
-            </select>
+          <div
+            className="flex items-center justify-between mb-2 cursor-pointer hover:bg-white/5 -mx-2 px-2 py-2 rounded-lg transition-colors"
+            onClick={() => setAlltagExpanded(!alltagExpanded)}
+          >
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-bold text-blue-300">Alltag ({expensesByCategory.Alltag.length})</h3>
+              <span className="text-white/30 text-sm">{alltagExpanded ? '▲' : '▼'}</span>
+            </div>
+            <p className="text-xl font-bold text-blue-400">{formatCurrency(totalAlltagExpenses)}</p>
           </div>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {expensesByCategory.Alltag.map((expense) => (
-              <div
-                key={expense.id}
-                className="flex items-center justify-between bg-white/5 rounded-lg p-3"
-              >
-                <div>
-                  <p className="font-medium">{expense.description}</p>
-                  <p className="text-xs text-white/60">
-                    {new Date(expense.date).toLocaleDateString('de-DE')}
-                  </p>
-                </div>
-                <p className="font-bold text-blue-400">{formatCurrency(expense.amount)}</p>
+
+          {alltagExpanded && (
+            <>
+              <div className="flex justify-end mb-2">
+                <select
+                  value={alltagSortBy}
+                  onChange={(e) => setAlltagSortBy(e.target.value as 'date' | 'amount-desc' | 'amount-asc')}
+                  className="select text-sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <option value="date">Nach Datum</option>
+                  <option value="amount-desc">Betrag ↓</option>
+                  <option value="amount-asc">Betrag ↑</option>
+                </select>
               </div>
-            ))}
-            {expensesByCategory.Alltag.length === 0 && (
-              <p className="text-white/60 text-center py-8">Keine Ausgaben in dieser Kategorie</p>
-            )}
-          </div>
-          <div className="mt-4 pt-4 border-t border-white/20">
-            <p className="text-right text-xl font-bold text-blue-400">
-              Gesamt: {formatCurrency(totalAlltagExpenses)}
-            </p>
-          </div>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {expensesByCategory.Alltag.map((expense) => (
+                  <div
+                    key={expense.id}
+                    className="flex items-center justify-between bg-white/5 rounded-lg p-3"
+                  >
+                    <div>
+                      <p className="font-medium">{expense.description}</p>
+                      <p className="text-xs text-white/60">
+                        {new Date(expense.date).toLocaleDateString('de-DE')}
+                      </p>
+                    </div>
+                    <p className="font-bold text-blue-400">{formatCurrency(expense.amount)}</p>
+                  </div>
+                ))}
+                {expensesByCategory.Alltag.length === 0 && (
+                  <p className="text-white/60 text-center py-8">Keine Ausgaben in dieser Kategorie</p>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-orange-300">
-              Sonderposten ({expensesByCategory.Sonderposten.length})
-            </h3>
-            <select
-              value={sonderpostenSortBy}
-              onChange={(e) => setSonderpostenSortBy(e.target.value as 'date' | 'amount-desc' | 'amount-asc')}
-              className="select text-sm"
-            >
-              <option value="date">Nach Datum</option>
-              <option value="amount-desc">Betrag ↓</option>
-              <option value="amount-asc">Betrag ↑</option>
-            </select>
+          <div
+            className="flex items-center justify-between mb-2 cursor-pointer hover:bg-white/5 -mx-2 px-2 py-2 rounded-lg transition-colors"
+            onClick={() => setSonderpostenExpanded(!sonderpostenExpanded)}
+          >
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-bold text-orange-300">Sonderposten ({expensesByCategory.Sonderposten.length})</h3>
+              <span className="text-white/30 text-sm">{sonderpostenExpanded ? '▲' : '▼'}</span>
+            </div>
+            <p className="text-xl font-bold text-orange-400">{formatCurrency(totalSonderpostenExpenses)}</p>
           </div>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {expensesByCategory.Sonderposten.map((expense) => (
-              <div
-                key={expense.id}
-                className="flex items-center justify-between bg-white/5 rounded-lg p-3"
-              >
-                <div>
-                  <p className="font-medium">{expense.description}</p>
-                  <p className="text-xs text-white/60">
-                    {new Date(expense.date).toLocaleDateString('de-DE')}
-                  </p>
-                </div>
-                <p className="font-bold text-orange-400">{formatCurrency(expense.amount)}</p>
+
+          {sonderpostenExpanded && (
+            <>
+              <div className="flex justify-end mb-2">
+                <select
+                  value={sonderpostenSortBy}
+                  onChange={(e) => setSonderpostenSortBy(e.target.value as 'date' | 'amount-desc' | 'amount-asc')}
+                  className="select text-sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <option value="date">Nach Datum</option>
+                  <option value="amount-desc">Betrag ↓</option>
+                  <option value="amount-asc">Betrag ↑</option>
+                </select>
               </div>
-            ))}
-            {expensesByCategory.Sonderposten.length === 0 && (
-              <p className="text-white/60 text-center py-8">Keine Ausgaben in dieser Kategorie</p>
-            )}
-          </div>
-          <div className="mt-4 pt-4 border-t border-white/20">
-            <p className="text-right text-xl font-bold text-orange-400">
-              Gesamt: {formatCurrency(totalSonderpostenExpenses)}
-            </p>
-          </div>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {expensesByCategory.Sonderposten.map((expense) => (
+                  <div
+                    key={expense.id}
+                    className="flex items-center justify-between bg-white/5 rounded-lg p-3"
+                  >
+                    <div>
+                      <p className="font-medium">{expense.description}</p>
+                      <p className="text-xs text-white/60">
+                        {new Date(expense.date).toLocaleDateString('de-DE')}
+                      </p>
+                    </div>
+                    <p className="font-bold text-orange-400">{formatCurrency(expense.amount)}</p>
+                  </div>
+                ))}
+                {expensesByCategory.Sonderposten.length === 0 && (
+                  <p className="text-white/60 text-center py-8">Keine Ausgaben in dieser Kategorie</p>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
