@@ -8,13 +8,17 @@ interface AreaMonthlyStatsProps {
   areas: ExpenseArea[];
   yearMonth: number;
   fixedCosts?: FixedCost[];
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
 const AreaMonthlyStats: React.FC<AreaMonthlyStatsProps> = ({
   expenses,
   areas,
   yearMonth,
-  fixedCosts = []
+  fixedCosts = [],
+  isExpanded = true,
+  onToggleExpand
 }) => {
   const [expandedArea, setExpandedArea] = useState<string | null>(null);
 
@@ -33,24 +37,35 @@ const AreaMonthlyStats: React.FC<AreaMonthlyStatsProps> = ({
 
   return (
     <div className="card mb-6 bg-gradient-to-br from-teal-500/10 to-cyan-500/10 border-teal-500/20">
-      <h3 className="text-xl font-bold mb-4 text-teal-300">
-        Ausgaben nach Bereichen
-      </h3>
+      <div
+        className={`flex items-center justify-between ${onToggleExpand ? 'cursor-pointer hover:bg-white/5 -mx-2 px-2 py-2 rounded-lg transition-colors' : 'mb-4'}`}
+        onClick={onToggleExpand}
+      >
+        <div className="flex items-center gap-2">
+          <h3 className="text-xl font-bold text-teal-300">
+            Ausgaben nach Bereichen
+          </h3>
+          {onToggleExpand && (
+            <span className="text-white/30 text-sm">{isExpanded ? '▲' : '▼'}</span>
+          )}
+        </div>
+        <p className="text-xl font-bold text-teal-400">{formatCurrency(grandTotal)}</p>
+      </div>
 
-      {stats.areas.length === 0 && stats.unassigned.expenseCount === 0 ? (
-        <p className="text-white/60">Keine Ausgaben in diesem Monat</p>
+      {isExpanded && (stats.areas.length === 0 && stats.unassigned.expenseCount === 0 ? (
+        <p className="text-white/60 mt-4">Keine Ausgaben in diesem Monat</p>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 mt-4">
           {stats.areas.map(area => {
             const percentage = grandTotal > 0 ? (area.totalAmount / grandTotal) * 100 : 0;
-            const isExpanded = expandedArea === area.areaId;
+            const isAreaExpanded = expandedArea === area.areaId;
             const hasDetails = area.expenses.length > 0 || area.fixedCosts.length > 0;
 
             return (
               <div key={area.areaId}>
                 <div
                   className={`flex justify-between items-center mb-1 ${hasDetails ? 'cursor-pointer hover:bg-white/5 -mx-2 px-2 py-1 rounded-lg transition-colors' : ''}`}
-                  onClick={() => hasDetails && setExpandedArea(isExpanded ? null : area.areaId)}
+                  onClick={() => hasDetails && setExpandedArea(isAreaExpanded ? null : area.areaId)}
                 >
                   <div className="flex items-center gap-2">
                     <div
@@ -63,7 +78,7 @@ const AreaMonthlyStats: React.FC<AreaMonthlyStatsProps> = ({
                     </span>
                     {hasDetails && (
                       <span className="text-white/30 text-xs">
-                        {isExpanded ? '▲' : '▼'}
+                        {isAreaExpanded ? '▲' : '▼'}
                       </span>
                     )}
                   </div>
@@ -73,7 +88,7 @@ const AreaMonthlyStats: React.FC<AreaMonthlyStatsProps> = ({
                 </div>
 
                 {/* Aufgeklappte Details */}
-                {isExpanded && (
+                {isAreaExpanded && (
                   <div className="ml-5 mb-3 space-y-1 text-sm">
                     {area.fixedCosts.map(fc => (
                       <div key={fc.id} className="flex justify-between text-white/70 bg-white/5 rounded px-2 py-1">
@@ -143,7 +158,7 @@ const AreaMonthlyStats: React.FC<AreaMonthlyStatsProps> = ({
             </div>
           </div>
         </div>
-      )}
+      ))}
     </div>
   );
 };

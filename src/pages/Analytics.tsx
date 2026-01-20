@@ -26,6 +26,9 @@ const Analytics: React.FC = () => {
   const [sonderpostenSortBy, setSonderpostenSortBy] = useState<'date' | 'amount-desc' | 'amount-asc'>('date');
   const [alltagExpanded, setAlltagExpanded] = useState(false);
   const [sonderpostenExpanded, setSonderpostenExpanded] = useState(false);
+  const [areaStatsExpanded, setAreaStatsExpanded] = useState(false);
+  const [keywordManageExpanded, setKeywordManageExpanded] = useState(false);
+  const [keywordResultsExpanded, setKeywordResultsExpanded] = useState(false);
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
@@ -316,6 +319,8 @@ const Analytics: React.FC = () => {
         areas={expenseAreas}
         yearMonth={selectedYearMonth}
         fixedCosts={fixedCosts.filter(fc => fc.yearMonth === selectedYearMonth)}
+        isExpanded={areaStatsExpanded}
+        onToggleExpand={() => setAreaStatsExpanded(!areaStatsExpanded)}
       />
 
       {/* Category Breakdown */}
@@ -425,10 +430,21 @@ const Analytics: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         {/* Keyword Management */}
         <div className="card">
-          <h3 className="text-xl font-bold mb-4 text-cyan-300">Schlagworte verwalten</h3>
+          <div
+            className="flex items-center justify-between cursor-pointer hover:bg-white/5 -mx-2 px-2 py-2 rounded-lg transition-colors"
+            onClick={() => setKeywordManageExpanded(!keywordManageExpanded)}
+          >
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-bold text-cyan-300">Schlagworte verwalten</h3>
+              <span className="text-white/30 text-sm">{keywordManageExpanded ? '▲' : '▼'}</span>
+            </div>
+            <span className="text-cyan-400 font-bold">{keywordFilters.length} Schlagworte</span>
+          </div>
 
+          {keywordManageExpanded && (
+          <>
           {/* Add Keyword */}
-          <div className="mb-4">
+          <div className="mb-4 mt-4">
             <div className="flex gap-2">
               <input
                 type="text"
@@ -521,48 +537,61 @@ const Analytics: React.FC = () => {
               </p>
             )}
           </div>
+          </>
+          )}
         </div>
 
         {/* Keyword Results */}
         <div className="card">
-          <h3 className="text-xl font-bold mb-4 text-cyan-300">
-            Gefundene Ausgaben {selectedKeywords.length > 0 && `(${keywordExpenses.length})`}
-          </h3>
+          <div
+            className="flex items-center justify-between cursor-pointer hover:bg-white/5 -mx-2 px-2 py-2 rounded-lg transition-colors"
+            onClick={() => setKeywordResultsExpanded(!keywordResultsExpanded)}
+          >
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-bold text-cyan-300">
+                Gefundene Ausgaben {selectedKeywords.length > 0 && `(${keywordExpenses.length})`}
+              </h3>
+              <span className="text-white/30 text-sm">{keywordResultsExpanded ? '▲' : '▼'}</span>
+            </div>
+            <span className="text-cyan-400 font-bold">{formatCurrency(keywordExpensesTotal)}</span>
+          </div>
 
-          {selectedKeywords.length > 0 ? (
-            <>
-              <div className="space-y-2 max-h-96 overflow-y-auto mb-4">
-                {keywordExpenses.map((expense) => (
-                  <div
-                    key={expense.id}
-                    className="flex items-center justify-between bg-white/5 rounded-lg p-3"
-                  >
-                    <div>
-                      <p className="font-medium">{expense.description}</p>
-                      <p className="text-xs text-white/60">
-                        {new Date(expense.date).toLocaleDateString('de-DE')} - {expense.category}
-                      </p>
+          {keywordResultsExpanded && (
+            selectedKeywords.length > 0 ? (
+              <>
+                <div className="space-y-2 max-h-96 overflow-y-auto mb-4 mt-4">
+                  {keywordExpenses.map((expense) => (
+                    <div
+                      key={expense.id}
+                      className="flex items-center justify-between bg-white/5 rounded-lg p-3"
+                    >
+                      <div>
+                        <p className="font-medium">{expense.description}</p>
+                        <p className="text-xs text-white/60">
+                          {new Date(expense.date).toLocaleDateString('de-DE')} - {expense.category}
+                        </p>
+                      </div>
+                      <p className="font-bold text-cyan-400">{formatCurrency(expense.amount)}</p>
                     </div>
-                    <p className="font-bold text-cyan-400">{formatCurrency(expense.amount)}</p>
-                  </div>
-                ))}
-                {keywordExpenses.length === 0 && (
-                  <p className="text-white/60 text-center py-8">
-                    Keine Ausgaben mit diesem Schlagwort gefunden
-                  </p>
-                )}
-              </div>
+                  ))}
+                  {keywordExpenses.length === 0 && (
+                    <p className="text-white/60 text-center py-8">
+                      Keine Ausgaben mit diesem Schlagwort gefunden
+                    </p>
+                  )}
+                </div>
 
-              <div className="mt-4 pt-4 border-t border-white/20">
-                <p className="text-right text-xl font-bold text-cyan-400">
-                  Gesamt: {formatCurrency(keywordExpensesTotal)}
-                </p>
-              </div>
-            </>
-          ) : (
-            <p className="text-white/60 text-center py-8">
-              Wählen Sie ein oder mehrere Schlagworte aus, um passende Ausgaben zu sehen
-            </p>
+                <div className="mt-4 pt-4 border-t border-white/20">
+                  <p className="text-right text-xl font-bold text-cyan-400">
+                    Gesamt: {formatCurrency(keywordExpensesTotal)}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <p className="text-white/60 text-center py-8 mt-4">
+                Wählen Sie ein oder mehrere Schlagworte aus, um passende Ausgaben zu sehen
+              </p>
+            )
           )}
         </div>
       </div>
