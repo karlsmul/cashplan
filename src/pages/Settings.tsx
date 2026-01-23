@@ -15,8 +15,11 @@ import {
   deleteAllExpenses,
   deleteExpensesForMonth,
   subscribeToUserSettings,
-  updateUserSettings
+  updateUserSettings,
+  exportAllUserData,
+  importUserData
 } from '../services/firestore';
+import { ExportData } from '../types';
 import { formatCurrency, getMonthName } from '../utils/dateUtils';
 
 const Settings: React.FC = () => {
@@ -70,6 +73,11 @@ const Settings: React.FC = () => {
   // Speichermodus
   const [storageModeChanging, setStorageModeChanging] = useState(false);
   const [storageModeSuccess, setStorageModeSuccess] = useState('');
+
+  // Export/Import
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
 
   const monthNames = [
     'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -230,6 +238,71 @@ const Settings: React.FC = () => {
       setError(error.message || 'Fehler beim Ändern des Speichermodus');
     } finally {
       setStorageModeChanging(false);
+    }
+  };
+
+  // Handler: Daten exportieren
+  const handleExport = async () => {
+    if (!user) return;
+    setExporting(true);
+    setError('');
+    try {
+      const data = await exportAllUserData(user.uid);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cashplan-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setSuccess('Daten erfolgreich exportiert!');
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (error: any) {
+      setError(error.message || 'Fehler beim Exportieren der Daten.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Handler: Daten importieren
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    const confirmMsg = importMode === 'replace'
+      ? 'ACHTUNG: Alle bestehenden Daten werden gelöscht und durch die importierten Daten ersetzt! Fortfahren?'
+      : 'Die importierten Daten werden zu Ihren bestehenden Daten hinzugefügt. Fortfahren?';
+
+    if (!confirm(confirmMsg)) {
+      e.target.value = '';
+      return;
+    }
+
+    setImporting(true);
+    setError('');
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text) as ExportData;
+
+      // Validierung
+      if (!data.version || !Array.isArray(data.expenses)) {
+        throw new Error('Ungültiges Dateiformat. Bitte wählen Sie eine gültige Cashplan-Backup-Datei.');
+      }
+
+      const result = await importUserData(user.uid, data, importMode);
+      setSuccess(`Import erfolgreich: ${result.imported} Einträge importiert.`);
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (error: any) {
+      if (error instanceof SyntaxError) {
+        setError('Die Datei enthält kein gültiges JSON-Format.');
+      } else {
+        setError(error.message || 'Fehler beim Importieren der Daten.');
+      }
+    } finally {
+      setImporting(false);
+      e.target.value = '';
     }
   };
 
@@ -633,6 +706,86 @@ const Settings: React.FC = () => {
           Hinweis: Bereits gespeicherte Daten werden nicht automatisch migriert.
           Bei Wechsel des Speichermodus bleiben bestehende Daten an ihrem Ort erhalten.
         </p>
+      </div>
+
+      {/* Daten-Export/Import */}
+      <div className="card mb-6 bg-gradient-to-br from-green-500/10 to-teal-500/10 border-green-500/20">
+        <h3 className="text-xl font-bold mb-4 text-green-300">📦 Daten-Export/Import</h3>
+
+        {/* Export */}
+        <div className="mb-6">
+          <h4 className="font-bold mb-2">Daten exportieren</h4>
+          <p className="text-sm text-white/60 mb-3">
+            Erstellen Sie ein Backup aller Ihrer Daten (Ausgaben, Fixkosten, Einnahmen, Bereiche, Schlagworte) als JSON-Datei.
+          </p>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="btn-primary"
+          >
+            {exporting ? 'Exportiere...' : '📥 Daten exportieren'}
+          </button>
+        </div>
+
+        {/* Import */}
+        <div>
+          <h4 className="font-bold mb-2">Daten importieren</h4>
+          <p className="text-sm text-white/60 mb-3">
+            Stellen Sie Daten aus einer Backup-Datei wieder her.
+          </p>
+
+          {/* Import-Modus */}
+          <div className="flex gap-6 mb-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="importMode"
+                value="merge"
+                checked={importMode === 'merge'}
+                onChange={() => setImportMode('merge')}
+                className="w-4 h-4"
+              />
+              <div>
+                <span className="font-medium">Ergänzen</span>
+                <p className="text-xs text-white/50">Daten werden hinzugefügt</p>
+              </div>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="importMode"
+                value="replace"
+                checked={importMode === 'replace'}
+                onChange={() => setImportMode('replace')}
+                className="w-4 h-4"
+              />
+              <div>
+                <span className="font-medium text-orange-300">Ersetzen</span>
+                <p className="text-xs text-white/50">Alle Daten werden überschrieben</p>
+              </div>
+            </label>
+          </div>
+
+          <label className="block">
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleImport}
+              disabled={importing}
+              className="block w-full text-sm text-white/60
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-lg file:border-0
+                file:text-sm file:font-semibold
+                file:bg-green-500/20 file:text-green-300
+                hover:file:bg-green-500/30
+                file:cursor-pointer
+                disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+          </label>
+          {importing && (
+            <p className="text-sm text-white/60 mt-2">Importiere Daten...</p>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

@@ -131,3 +131,14 @@ export interface YearlyAreaStats {
   }[];
   unassignedTotal: number;
 }
+
+// Export/Import Datenstruktur
+export interface ExportData {
+  version: '1.0';
+  exportedAt: string;
+  expenses: Omit<Expense, 'id'>[];
+  fixedCosts: Omit<FixedCost, 'id'>[];
+  incomes: Omit<Income, 'id'>[];
+  expenseAreas: Omit<ExpenseArea, 'id'>[];
+  keywordFilters: Omit<KeywordFilter, 'id'>[];
+}

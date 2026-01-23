@@ -12,7 +12,7 @@ import {
   FirestoreError
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Expense, FixedCost, Income, KeywordFilter, UserSettings, ExpenseArea } from '../types';
+import { Expense, FixedCost, Income, KeywordFilter, UserSettings, ExpenseArea, ExportData } from '../types';
 
 // Error-Handler für Firestore-Operationen
 const handleFirestoreError = (error: unknown, operation: string): never => {
@@ -678,5 +678,127 @@ export const getExpensesForYear = async (userId: string, year: number): Promise<
     })) as Expense[];
   } catch (error) {
     return handleFirestoreError(error, 'getExpensesForYear');
+  }
+};
+
+// Alle Expenses eines Users abrufen (für Export)
+export const getAllExpenses = async (userId: string): Promise<Expense[]> => {
+  try {
+    const expensesRef = collection(db, 'expenses');
+    const q = query(expensesRef, where('userId', '==', userId));
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      date: doc.data().date.toDate()
+    })) as Expense[];
+  } catch (error) {
+    return handleFirestoreError(error, 'getAllExpenses');
+  }
+};
+
+// Export: Alle Daten eines Users exportieren
+export const exportAllUserData = async (userId: string): Promise<ExportData> => {
+  try {
+    const [expenses, fixedCosts, incomes, areas, filters] = await Promise.all([
+      getAllExpenses(userId),
+      getFixedCosts(userId),
+      getIncomes(userId),
+      getExpenseAreas(userId),
+      getKeywordFilters(userId)
+    ]);
+
+    // IDs und userId entfernen für Export
+    const cleanExpenses = expenses.map(({ id, userId: _, ...rest }) => ({
+      ...rest,
+      date: rest.date // Date bleibt als Date
+    }));
+    const cleanFixedCosts = fixedCosts.map(({ id, userId: _, ...rest }) => rest);
+    const cleanIncomes = incomes.map(({ id, userId: _, ...rest }) => rest);
+    const cleanAreas = areas.map(({ id, userId: _, ...rest }) => rest);
+    const cleanFilters = filters.map(({ id, userId: _, ...rest }) => rest);
+
+    return {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      expenses: cleanExpenses as Omit<Expense, 'id'>[],
+      fixedCosts: cleanFixedCosts as Omit<FixedCost, 'id'>[],
+      incomes: cleanIncomes as Omit<Income, 'id'>[],
+      expenseAreas: cleanAreas as Omit<ExpenseArea, 'id'>[],
+      keywordFilters: cleanFilters as Omit<KeywordFilter, 'id'>[]
+    };
+  } catch (error) {
+    return handleFirestoreError(error, 'exportAllUserData');
+  }
+};
+
+// Hilfsfunktion: Alle Daten einer Collection löschen
+const deleteAllUserDataFromCollection = async (collectionName: string, userId: string): Promise<void> => {
+  const collRef = collection(db, collectionName);
+  const q = query(collRef, where('userId', '==', userId));
+  const snapshot = await getDocs(q);
+  const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+  await Promise.all(deletePromises);
+};
+
+// Import: Daten eines Users importieren
+export const importUserData = async (
+  userId: string,
+  data: ExportData,
+  mode: 'merge' | 'replace'
+): Promise<{ imported: number; skipped: number }> => {
+  try {
+    let imported = 0;
+
+    // Bei 'replace': Erst alle bestehenden Daten löschen
+    if (mode === 'replace') {
+      await Promise.all([
+        deleteAllUserDataFromCollection('expenses', userId),
+        deleteAllUserDataFromCollection('fixedCosts', userId),
+        deleteAllUserDataFromCollection('incomes', userId),
+        deleteAllUserDataFromCollection('expenseAreas', userId),
+        deleteAllUserDataFromCollection('keywordFilters', userId)
+      ]);
+    }
+
+    // Expenses importieren
+    for (const expense of data.expenses) {
+      const expenseData: Omit<Expense, 'id'> = {
+        ...expense,
+        userId,
+        date: new Date(expense.date) // String zu Date konvertieren
+      };
+      await addExpense(expenseData);
+      imported++;
+    }
+
+    // FixedCosts importieren
+    for (const fixedCost of data.fixedCosts) {
+      await addFixedCost({ ...fixedCost, userId });
+      imported++;
+    }
+
+    // Incomes importieren
+    for (const income of data.incomes) {
+      await addIncome({ ...income, userId });
+      imported++;
+    }
+
+    // ExpenseAreas importieren
+    for (const area of data.expenseAreas) {
+      await addExpenseArea({ ...area, userId });
+      imported++;
+    }
+
+    // KeywordFilters importieren
+    for (const filter of data.keywordFilters) {
+      await addKeywordFilter({ ...filter, userId });
+      imported++;
+    }
+
+    return { imported, skipped: 0 };
+  } catch (error) {
+    return handleFirestoreError(error, 'importUserData');
   }
 };
