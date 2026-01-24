@@ -17,7 +17,9 @@ import {
   subscribeToUserSettings,
   updateUserSettings,
   exportAllUserData,
-  importUserData
+  importUserData,
+  exportExpensesToCSV,
+  importExpensesFromCSV
 } from '../services/firestore';
 import { ExportData } from '../types';
 import { formatCurrency, getMonthName } from '../utils/dateUtils';
@@ -78,6 +80,7 @@ const Settings: React.FC = () => {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
+  const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('json');
 
   const monthNames = [
     'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -247,17 +250,34 @@ const Settings: React.FC = () => {
     setExporting(true);
     setError('');
     try {
-      const data = await exportAllUserData(user.uid);
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const dateStr = new Date().toISOString().split('T')[0];
+      let blob: Blob;
+      let filename: string;
+
+      if (exportFormat === 'csv') {
+        // CSV Export (nur Ausgaben)
+        const csvContent = await exportExpensesToCSV(user.uid);
+        blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+        filename = `cashplan-ausgaben-${dateStr}.csv`;
+      } else {
+        // JSON Export (alle Daten)
+        const data = await exportAllUserData(user.uid);
+        blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        filename = `cashplan-backup-${dateStr}.json`;
+      }
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `cashplan-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      setSuccess('Daten erfolgreich exportiert!');
+      setSuccess(exportFormat === 'csv'
+        ? 'Ausgaben als CSV exportiert!'
+        : 'Alle Daten als JSON exportiert!'
+      );
       setTimeout(() => setSuccess(''), 5000);
     } catch (error: any) {
       setError(error.message || 'Fehler beim Exportieren der Daten.');
@@ -271,9 +291,14 @@ const Settings: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
+    const isCSV = file.name.endsWith('.csv');
     const confirmMsg = importMode === 'replace'
-      ? 'ACHTUNG: Alle bestehenden Daten werden gelöscht und durch die importierten Daten ersetzt! Fortfahren?'
-      : 'Die importierten Daten werden zu Ihren bestehenden Daten hinzugefügt. Fortfahren?';
+      ? isCSV
+        ? 'ACHTUNG: Alle bestehenden Ausgaben werden gelöscht und durch die importierten ersetzt! Fortfahren?'
+        : 'ACHTUNG: Alle bestehenden Daten werden gelöscht und durch die importierten Daten ersetzt! Fortfahren?'
+      : isCSV
+        ? 'Die importierten Ausgaben werden zu Ihren bestehenden Daten hinzugefügt. Fortfahren?'
+        : 'Die importierten Daten werden zu Ihren bestehenden Daten hinzugefügt. Fortfahren?';
 
     if (!confirm(confirmMsg)) {
       e.target.value = '';
@@ -284,16 +309,28 @@ const Settings: React.FC = () => {
     setError('');
     try {
       const text = await file.text();
-      const data = JSON.parse(text) as ExportData;
 
-      // Validierung
-      if (!data.version || !Array.isArray(data.expenses)) {
-        throw new Error('Ungültiges Dateiformat. Bitte wählen Sie eine gültige Cashplan-Backup-Datei.');
+      if (isCSV) {
+        // CSV Import (nur Ausgaben)
+        const result = await importExpensesFromCSV(user.uid, text, importMode);
+        if (result.errors.length > 0) {
+          setError(`${result.skipped} Zeilen übersprungen: ${result.errors.slice(0, 3).join(', ')}${result.errors.length > 3 ? '...' : ''}`);
+        }
+        setSuccess(`CSV-Import: ${result.imported} Ausgaben importiert.`);
+        setTimeout(() => setSuccess(''), 5000);
+      } else {
+        // JSON Import (alle Daten)
+        const data = JSON.parse(text) as ExportData;
+
+        // Validierung
+        if (!data.version || !Array.isArray(data.expenses)) {
+          throw new Error('Ungültiges Dateiformat. Bitte wählen Sie eine gültige Cashplan-Backup-Datei.');
+        }
+
+        const result = await importUserData(user.uid, data, importMode);
+        setSuccess(`Import erfolgreich: ${result.imported} Einträge importiert.`);
+        setTimeout(() => setSuccess(''), 5000);
       }
-
-      const result = await importUserData(user.uid, data, importMode);
-      setSuccess(`Import erfolgreich: ${result.imported} Einträge importiert.`);
-      setTimeout(() => setSuccess(''), 5000);
     } catch (error: any) {
       if (error instanceof SyntaxError) {
         setError('Die Datei enthält kein gültiges JSON-Format.');
@@ -715,15 +752,50 @@ const Settings: React.FC = () => {
         {/* Export */}
         <div className="mb-6">
           <h4 className="font-bold mb-2">Daten exportieren</h4>
+
+          {/* Format-Auswahl */}
+          <div className="flex gap-4 mb-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="exportFormat"
+                value="json"
+                checked={exportFormat === 'json'}
+                onChange={() => setExportFormat('json')}
+                className="w-4 h-4"
+              />
+              <div>
+                <span className="font-medium">JSON</span>
+                <p className="text-xs text-white/50">Alle Daten (Backup)</p>
+              </div>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="exportFormat"
+                value="csv"
+                checked={exportFormat === 'csv'}
+                onChange={() => setExportFormat('csv')}
+                className="w-4 h-4"
+              />
+              <div>
+                <span className="font-medium">CSV</span>
+                <p className="text-xs text-white/50">Nur Ausgaben (Excel)</p>
+              </div>
+            </label>
+          </div>
+
           <p className="text-sm text-white/60 mb-3">
-            Erstellen Sie ein Backup aller Ihrer Daten (Ausgaben, Fixkosten, Einnahmen, Bereiche, Schlagworte) als JSON-Datei.
+            {exportFormat === 'json'
+              ? 'Vollständiges Backup aller Daten (Ausgaben, Fixkosten, Einnahmen, Bereiche, Schlagworte).'
+              : 'Nur Ausgaben als CSV-Datei für Excel/Google Sheets.'}
           </p>
           <button
             onClick={handleExport}
             disabled={exporting}
             className="btn-primary"
           >
-            {exporting ? 'Exportiere...' : '📥 Daten exportieren'}
+            {exporting ? 'Exportiere...' : exportFormat === 'json' ? '📥 JSON exportieren' : '📥 CSV exportieren'}
           </button>
         </div>
 
@@ -731,7 +803,7 @@ const Settings: React.FC = () => {
         <div>
           <h4 className="font-bold mb-2">Daten importieren</h4>
           <p className="text-sm text-white/60 mb-3">
-            Stellen Sie Daten aus einer Backup-Datei wieder her.
+            Importieren Sie Daten aus einer JSON- oder CSV-Datei. CSV importiert nur Ausgaben.
           </p>
 
           {/* Import-Modus */}
@@ -769,7 +841,7 @@ const Settings: React.FC = () => {
           <label className="block">
             <input
               type="file"
-              accept=".json"
+              accept=".json,.csv"
               onChange={handleImport}
               disabled={importing}
               className="block w-full text-sm text-white/60

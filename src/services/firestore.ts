@@ -698,6 +698,112 @@ export const getAllExpenses = async (userId: string): Promise<Expense[]> => {
   }
 };
 
+// CSV Export: Ausgaben als CSV-String exportieren
+export const exportExpensesToCSV = async (userId: string): Promise<string> => {
+  const expenses = await getAllExpenses(userId);
+
+  // CSV Header (Semikolon-getrennt für deutsche Excel-Kompatibilität)
+  const header = 'Datum;Betrag;Kategorie;Beschreibung';
+
+  // CSV Zeilen (sortiert nach Datum absteigend)
+  const rows = expenses
+    .sort((a, b) => b.date.getTime() - a.date.getTime())
+    .map(expense => {
+      const date = expense.date.toLocaleDateString('de-DE');
+      const amount = expense.amount.toFixed(2).replace('.', ',');
+      const category = expense.category;
+      const description = expense.description.replace(/"/g, '""');
+      return `${date};${amount};${category};"${description}"`;
+    });
+
+  return [header, ...rows].join('\n');
+};
+
+// CSV Import: CSV-String zu Ausgaben parsen und importieren
+export const importExpensesFromCSV = async (
+  userId: string,
+  csvContent: string,
+  mode: 'merge' | 'replace'
+): Promise<{ imported: number; skipped: number; errors: string[] }> => {
+  const lines = csvContent.trim().split('\n');
+  const errors: string[] = [];
+  let imported = 0;
+  let skipped = 0;
+
+  if (lines.length < 2) {
+    throw new Error('CSV-Datei enthält keine Daten');
+  }
+
+  // Bei 'replace': Erst alle Ausgaben löschen
+  if (mode === 'replace') {
+    await deleteAllExpenses(userId);
+  }
+
+  // Zeilen parsen (ab Zeile 2)
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    try {
+      // CSV-Zeile parsen (Semikolon-getrennt)
+      const match = line.match(/^([^;]+);([^;]+);([^;]+);(?:"([^"]*(?:""[^"]*)*)"|([^;]*))$/);
+      if (!match) {
+        errors.push(`Zeile ${i + 1}: Ungültiges Format`);
+        skipped++;
+        continue;
+      }
+
+      const [, dateStr, amountStr, category, descQuoted, descUnquoted] = match;
+      const description = (descQuoted || descUnquoted || '').replace(/""/g, '"');
+
+      // Datum parsen (DD.MM.YYYY)
+      const dateParts = dateStr.split('.');
+      if (dateParts.length !== 3) {
+        errors.push(`Zeile ${i + 1}: Ungültiges Datum`);
+        skipped++;
+        continue;
+      }
+      const date = new Date(
+        parseInt(dateParts[2]),
+        parseInt(dateParts[1]) - 1,
+        parseInt(dateParts[0])
+      );
+      if (isNaN(date.getTime())) {
+        errors.push(`Zeile ${i + 1}: Ungültiges Datum`);
+        skipped++;
+        continue;
+      }
+
+      // Betrag parsen
+      const amount = parseFloat(amountStr.replace(',', '.'));
+      if (isNaN(amount) || amount <= 0) {
+        errors.push(`Zeile ${i + 1}: Ungültiger Betrag`);
+        skipped++;
+        continue;
+      }
+
+      // Kategorie validieren
+      const validCategory = category === 'Alltag' || category === 'Sonderposten'
+        ? category as 'Alltag' | 'Sonderposten'
+        : 'Alltag';
+
+      await addExpense({
+        amount,
+        category: validCategory,
+        description: description.trim(),
+        date,
+        userId
+      });
+      imported++;
+    } catch {
+      errors.push(`Zeile ${i + 1}: Fehler beim Importieren`);
+      skipped++;
+    }
+  }
+
+  return { imported, skipped, errors };
+};
+
 // Export: Alle Daten eines Users exportieren
 export const exportAllUserData = async (userId: string): Promise<ExportData> => {
   try {
