@@ -82,6 +82,14 @@ const Settings: React.FC = () => {
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
   const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('json');
 
+  // Klappbare Sektionen
+  const [incomeAddExpanded, setIncomeAddExpanded] = useState(false);
+  const [fixedCostAddExpanded, setFixedCostAddExpanded] = useState(false);
+  const [fixedCostListExpanded, setFixedCostListExpanded] = useState(false);
+  const [exportExpanded, setExportExpanded] = useState(false);
+  const [storageExpanded, setStorageExpanded] = useState(false);
+  const [dataManagementExpanded, setDataManagementExpanded] = useState(false);
+
   const monthNames = [
     'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
     'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
@@ -557,6 +565,10 @@ const Settings: React.FC = () => {
   const filteredFixedCosts = sortFixedCosts(fixedCosts.filter((cost) => cost.yearMonth === selectedYearMonth));
   const filteredIncomes = sortIncomes(incomes.filter((income) => income.yearMonth === selectedYearMonth));
 
+  // Berechnungen für Header-Anzeige
+  const totalIncomes = filteredIncomes.reduce((sum, i) => sum + i.amount, 0);
+  const totalFixedCosts = filteredFixedCosts.reduce((sum, c) => sum + c.amount, 0);
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-yellow-400 via-green-400 to-blue-400 bg-clip-text text-transparent">
@@ -574,9 +586,9 @@ const Settings: React.FC = () => {
         </div>
       )}
 
-      {/* Monatswähler */}
+      {/* 1. Monatswähler */}
       <div className="card mb-6 bg-gradient-to-br from-purple-500/10 to-blue-500/10 border-purple-500/20">
-        <h3 className="text-xl font-bold mb-4 text-purple-300">📅 Monat auswählen</h3>
+        <h3 className="text-xl font-bold mb-4 text-purple-300">Monat auswählen</h3>
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium mb-2">Monat</label>
@@ -614,19 +626,19 @@ const Settings: React.FC = () => {
           onClick={handleCopyFromPreviousMonth}
           className="btn-primary w-full"
         >
-          📋 Vormonat kopieren
+          Vormonat kopieren
         </button>
       </div>
 
-      {/* Budget-Einstellungen */}
+      {/* 2. Wochenlimit */}
       <div className="card mb-6 bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/20">
-        <h3 className="text-xl font-bold mb-4 text-yellow-300">💰 Wochenlimit</h3>
+        <h3 className="text-xl font-bold mb-4 text-yellow-300">Wochenlimit</h3>
         <p className="text-sm text-white/60 mb-4">
           Wochenausgaben werden rot markiert, wenn sie diesen Betrag überschreiten.
         </p>
         <div className="flex gap-4">
           <div className="flex-1">
-            <label className="block text-sm font-medium mb-2">Betrag (€)</label>
+            <label className="block text-sm font-medium mb-2">Betrag (EUR)</label>
             <input
               type="number"
               step="0.01"
@@ -654,217 +666,111 @@ const Settings: React.FC = () => {
         )}
       </div>
 
-      {/* Datenschutz & Speicherung */}
-      <div className="card mb-6 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20">
-        <h3 className="text-xl font-bold mb-4 text-blue-300">🔒 Datenschutz & Speicherung</h3>
-        <p className="text-sm text-white/60 mb-4">
-          Wählen Sie, wo Ihre Finanzdaten gespeichert werden sollen.
-        </p>
-
+      {/* 3. Einnahmen (Liste) - NICHT klappbar */}
+      <div className="card mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold text-green-300">
+            Einnahmen für {getMonthName(selectedMonth)} {selectedYear}
+          </h3>
+          <div className="flex items-center gap-4">
+            <span className="font-bold text-green-400">{formatCurrency(totalIncomes)}</span>
+            <select
+              value={incomeSortBy}
+              onChange={(e) => setIncomeSortBy(e.target.value as 'name' | 'amount-desc' | 'amount-asc')}
+              className="select text-sm"
+            >
+              <option value="name">Nach Name</option>
+              <option value="amount-desc">Betrag absteigend</option>
+              <option value="amount-asc">Betrag aufsteigend</option>
+            </select>
+          </div>
+        </div>
         <div className="space-y-3">
-          {/* Cloud Option */}
-          <label
-            className={`flex items-start gap-4 p-4 rounded-lg cursor-pointer transition-all ${
-              userSettings?.storageMode === 'cloud'
-                ? 'bg-blue-500/20 border-2 border-blue-400'
-                : 'bg-white/5 border-2 border-transparent hover:border-white/20'
-            }`}
-          >
-            <input
-              type="radio"
-              name="storageMode"
-              value="cloud"
-              checked={userSettings?.storageMode === 'cloud'}
-              onChange={() => handleStorageModeChange('cloud')}
-              disabled={storageModeChanging}
-              className="mt-1"
-            />
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-blue-300">☁️ Cloud-Speicherung</span>
-                <span className="text-xs bg-green-500/30 text-green-300 px-2 py-0.5 rounded-full">Empfohlen</span>
-              </div>
-              <p className="text-sm text-white/60 mt-1">
-                Daten werden sicher in der Cloud (Firebase) gespeichert.
-              </p>
-              <ul className="text-xs text-white/50 mt-2 space-y-1">
-                <li>✓ Sync zwischen allen Geräten</li>
-                <li>✓ Automatische Backups</li>
-                <li>✓ Daten sicher bei Geräteverlust</li>
-              </ul>
+          {filteredIncomes.map((income) => (
+            <div key={income.id}>
+              {editingIncome?.id === income.id ? (
+                <div className="bg-white/10 rounded-lg p-4 space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Bezeichnung</label>
+                    <input
+                      type="text"
+                      value={editIncomeForm.name}
+                      onChange={(e) => setEditIncomeForm({ ...editIncomeForm, name: e.target.value })}
+                      className="input w-full"
+                      maxLength={100}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Betrag (EUR)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max="999999.99"
+                      value={editIncomeForm.amount}
+                      onChange={(e) => setEditIncomeForm({ ...editIncomeForm, amount: e.target.value })}
+                      className="input w-full"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={handleSaveIncome} className="btn-primary flex-1">
+                      Speichern
+                    </button>
+                    <button
+                      onClick={() => setEditingIncome(null)}
+                      className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg"
+                    >
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between bg-white/5 rounded-lg p-4 group">
+                  <div className="flex-1">
+                    <p className="font-medium">{income.name}</p>
+                    <p className="text-2xl font-bold text-green-400">
+                      {formatCurrency(income.amount)}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEditIncome(income)}
+                      className="opacity-0 group-hover:opacity-100 text-blue-400 hover:text-blue-300 transition-opacity"
+                    >
+                      Bearbeiten
+                    </button>
+                    <button
+                      onClick={() => handleDeleteIncome(income.id)}
+                      className="text-red-400 hover:text-red-300"
+                    >
+                      Löschen
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          </label>
-
-          {/* Lokal Option */}
-          <label
-            className={`flex items-start gap-4 p-4 rounded-lg cursor-pointer transition-all ${
-              userSettings?.storageMode === 'local'
-                ? 'bg-orange-500/20 border-2 border-orange-400'
-                : 'bg-white/5 border-2 border-transparent hover:border-white/20'
-            }`}
-          >
-            <input
-              type="radio"
-              name="storageMode"
-              value="local"
-              checked={userSettings?.storageMode === 'local'}
-              onChange={() => handleStorageModeChange('local')}
-              disabled={storageModeChanging}
-              className="mt-1"
-            />
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-orange-300">📱 Nur lokale Speicherung</span>
-              </div>
-              <p className="text-sm text-white/60 mt-1">
-                Daten werden nur auf diesem Gerät gespeichert (IndexedDB).
-              </p>
-              <ul className="text-xs text-white/50 mt-2 space-y-1">
-                <li>✓ Maximaler Datenschutz</li>
-                <li>✓ Keine Cloud-Verbindung nötig</li>
-                <li>⚠️ Kein Sync zwischen Geräten</li>
-                <li>⚠️ Datenverlust bei Geräteverlust möglich</li>
-              </ul>
-            </div>
-          </label>
-        </div>
-
-        {storageModeChanging && (
-          <p className="text-sm text-white/60 mt-4">Speichermodus wird geändert...</p>
-        )}
-
-        {storageModeSuccess && (
-          <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3 text-green-200 text-sm mt-4">
-            {storageModeSuccess}
-          </div>
-        )}
-
-        <p className="text-xs text-white/40 mt-4">
-          Hinweis: Bereits gespeicherte Daten werden nicht automatisch migriert.
-          Bei Wechsel des Speichermodus bleiben bestehende Daten an ihrem Ort erhalten.
-        </p>
-      </div>
-
-      {/* Daten-Export/Import */}
-      <div className="card mb-6 bg-gradient-to-br from-green-500/10 to-teal-500/10 border-green-500/20">
-        <h3 className="text-xl font-bold mb-4 text-green-300">📦 Daten-Export/Import</h3>
-
-        {/* Export */}
-        <div className="mb-6">
-          <h4 className="font-bold mb-2">Daten exportieren</h4>
-
-          {/* Format-Auswahl */}
-          <div className="flex gap-4 mb-3">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="exportFormat"
-                value="json"
-                checked={exportFormat === 'json'}
-                onChange={() => setExportFormat('json')}
-                className="w-4 h-4"
-              />
-              <div>
-                <span className="font-medium">JSON</span>
-                <p className="text-xs text-white/50">Alle Daten (Backup)</p>
-              </div>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="exportFormat"
-                value="csv"
-                checked={exportFormat === 'csv'}
-                onChange={() => setExportFormat('csv')}
-                className="w-4 h-4"
-              />
-              <div>
-                <span className="font-medium">CSV</span>
-                <p className="text-xs text-white/50">Nur Ausgaben (Excel)</p>
-              </div>
-            </label>
-          </div>
-
-          <p className="text-sm text-white/60 mb-3">
-            {exportFormat === 'json'
-              ? 'Vollständiges Backup aller Daten (Ausgaben, Fixkosten, Einnahmen, Bereiche, Schlagworte).'
-              : 'Nur Ausgaben als CSV-Datei für Excel/Google Sheets.'}
-          </p>
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            className="btn-primary"
-          >
-            {exporting ? 'Exportiere...' : exportFormat === 'json' ? '📥 JSON exportieren' : '📥 CSV exportieren'}
-          </button>
-        </div>
-
-        {/* Import */}
-        <div>
-          <h4 className="font-bold mb-2">Daten importieren</h4>
-          <p className="text-sm text-white/60 mb-3">
-            Importieren Sie Daten aus einer JSON- oder CSV-Datei. CSV importiert nur Ausgaben.
-          </p>
-
-          {/* Import-Modus */}
-          <div className="flex gap-6 mb-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="importMode"
-                value="merge"
-                checked={importMode === 'merge'}
-                onChange={() => setImportMode('merge')}
-                className="w-4 h-4"
-              />
-              <div>
-                <span className="font-medium">Ergänzen</span>
-                <p className="text-xs text-white/50">Daten werden hinzugefügt</p>
-              </div>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="importMode"
-                value="replace"
-                checked={importMode === 'replace'}
-                onChange={() => setImportMode('replace')}
-                className="w-4 h-4"
-              />
-              <div>
-                <span className="font-medium text-orange-300">Ersetzen</span>
-                <p className="text-xs text-white/50">Alle Daten werden überschrieben</p>
-              </div>
-            </label>
-          </div>
-
-          <label className="block">
-            <input
-              type="file"
-              accept=".json,.csv"
-              onChange={handleImport}
-              disabled={importing}
-              className="block w-full text-sm text-white/60
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-lg file:border-0
-                file:text-sm file:font-semibold
-                file:bg-green-500/20 file:text-green-300
-                hover:file:bg-green-500/30
-                file:cursor-pointer
-                disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-          </label>
-          {importing && (
-            <p className="text-sm text-white/60 mt-2">Importiere Daten...</p>
+          ))}
+          {filteredIncomes.length === 0 && (
+            <p className="text-white/60 text-center py-8">
+              Keine Einnahmen für {getMonthName(selectedMonth)} {selectedYear}
+            </p>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Einnahmen */}
-        <div>
-          <div className="card mb-6">
-            <h2 className="text-2xl font-bold mb-4 text-green-400">Einnahme hinzufügen</h2>
+      {/* 4. Einnahmen hinzufügen - KLAPPBAR */}
+      <div className="card mb-6">
+        <div
+          className="flex items-center justify-between cursor-pointer hover:bg-white/5 -mx-2 px-2 py-2 rounded-lg transition-colors"
+          onClick={() => setIncomeAddExpanded(!incomeAddExpanded)}
+        >
+          <div className="flex items-center gap-2">
+            <h3 className="text-xl font-bold text-green-400">Einnahme hinzufügen</h3>
+            <span className="text-white/30 text-sm">{incomeAddExpanded ? '▲' : '▼'}</span>
+          </div>
+        </div>
+        {incomeAddExpanded && (
+          <div className="mt-4">
             <form onSubmit={handleAddIncome} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Bezeichnung</label>
@@ -879,7 +785,7 @@ const Settings: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Betrag (€)</label>
+                <label className="block text-sm font-medium mb-2">Betrag (EUR)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -900,100 +806,22 @@ const Settings: React.FC = () => {
               </button>
             </form>
           </div>
+        )}
+      </div>
 
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-green-300">
-                Einnahmen für {getMonthName(selectedMonth)} {selectedYear}
-              </h3>
-              <select
-                value={incomeSortBy}
-                onChange={(e) => setIncomeSortBy(e.target.value as 'name' | 'amount-desc' | 'amount-asc')}
-                className="select text-sm"
-              >
-                <option value="name">Nach Name</option>
-                <option value="amount-desc">Betrag ↓</option>
-                <option value="amount-asc">Betrag ↑</option>
-              </select>
-            </div>
-            <div className="space-y-3">
-              {filteredIncomes.map((income) => (
-                <div key={income.id}>
-                  {editingIncome?.id === income.id ? (
-                    <div className="bg-white/10 rounded-lg p-4 space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Bezeichnung</label>
-                        <input
-                          type="text"
-                          value={editIncomeForm.name}
-                          onChange={(e) => setEditIncomeForm({ ...editIncomeForm, name: e.target.value })}
-                          className="input w-full"
-                          maxLength={100}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Betrag (€)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          max="999999.99"
-                          value={editIncomeForm.amount}
-                          onChange={(e) => setEditIncomeForm({ ...editIncomeForm, amount: e.target.value })}
-                          className="input w-full"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={handleSaveIncome} className="btn-primary flex-1">
-                          ✓ Speichern
-                        </button>
-                        <button
-                          onClick={() => setEditingIncome(null)}
-                          className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg"
-                        >
-                          Abbrechen
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between bg-white/5 rounded-lg p-4 group">
-                      <div className="flex-1">
-                        <p className="font-medium">{income.name}</p>
-                        <p className="text-2xl font-bold text-green-400">
-                          {formatCurrency(income.amount)}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEditIncome(income)}
-                          className="opacity-0 group-hover:opacity-100 text-blue-400 hover:text-blue-300 transition-opacity"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          onClick={() => handleDeleteIncome(income.id)}
-                          className="text-red-400 hover:text-red-300"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-              {filteredIncomes.length === 0 && (
-                <p className="text-white/60 text-center py-8">
-                  Keine Einnahmen für {getMonthName(selectedMonth)} {selectedYear}
-                </p>
-              )}
-            </div>
+      {/* 5. Fixkosten hinzufügen - KLAPPBAR */}
+      <div className="card mb-6">
+        <div
+          className="flex items-center justify-between cursor-pointer hover:bg-white/5 -mx-2 px-2 py-2 rounded-lg transition-colors"
+          onClick={() => setFixedCostAddExpanded(!fixedCostAddExpanded)}
+        >
+          <div className="flex items-center gap-2">
+            <h3 className="text-xl font-bold text-red-400">Fixkosten hinzufügen</h3>
+            <span className="text-white/30 text-sm">{fixedCostAddExpanded ? '▲' : '▼'}</span>
           </div>
         </div>
-
-        {/* Fixkosten */}
-        <div>
-          <div className="card mb-6">
-            <h2 className="text-2xl font-bold mb-4 text-red-400">Fixkosten hinzufügen</h2>
+        {fixedCostAddExpanded && (
+          <div className="mt-4">
             <form onSubmit={handleAddFixedCost} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Bezeichnung</label>
@@ -1008,7 +836,7 @@ const Settings: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Betrag (€)</label>
+                <label className="block text-sm font-medium mb-2">Betrag (EUR)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -1081,25 +909,39 @@ const Settings: React.FC = () => {
               </button>
             </form>
           </div>
+        )}
+      </div>
 
-          <div className="card">
+      {/* 6. Fixkosten (Liste) - KLAPPBAR */}
+      <div className="card mb-6">
+        <div
+          className="flex items-center justify-between cursor-pointer hover:bg-white/5 -mx-2 px-2 py-2 rounded-lg transition-colors"
+          onClick={() => setFixedCostListExpanded(!fixedCostListExpanded)}
+        >
+          <div className="flex items-center gap-2">
+            <h3 className="text-xl font-bold text-red-300">
+              Fixkosten für {getMonthName(selectedMonth)} {selectedYear}
+            </h3>
+            <span className="text-white/30 text-sm">{fixedCostListExpanded ? '▲' : '▼'}</span>
+          </div>
+          <span className="font-bold text-red-400">{formatCurrency(totalFixedCosts)} ({filteredFixedCosts.length})</span>
+        </div>
+        {fixedCostListExpanded && (
+          <div className="mt-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-red-300">
-                Fixkosten für {getMonthName(selectedMonth)} {selectedYear}
-              </h3>
+              <p className="text-sm text-white/60">
+                Klicken Sie auf eine Fixkosten-Karte, um sie für diesen Monat als bezahlt zu markieren
+              </p>
               <select
                 value={fixedCostSortBy}
                 onChange={(e) => setFixedCostSortBy(e.target.value as 'name' | 'amount-desc' | 'amount-asc')}
                 className="select text-sm"
               >
                 <option value="name">Nach Name</option>
-                <option value="amount-desc">Betrag ↓</option>
-                <option value="amount-asc">Betrag ↑</option>
+                <option value="amount-desc">Betrag absteigend</option>
+                <option value="amount-asc">Betrag aufsteigend</option>
               </select>
             </div>
-            <p className="text-sm text-white/60 mb-4">
-              💡 Klicken Sie auf eine Fixkosten-Karte, um sie für diesen Monat als bezahlt zu markieren
-            </p>
             <div className="space-y-3">
               {filteredFixedCosts.map((cost) => {
                 const currentMonth = new Date().getMonth();
@@ -1122,7 +964,7 @@ const Settings: React.FC = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium mb-2">Betrag (€)</label>
+                          <label className="block text-sm font-medium mb-2">Betrag (EUR)</label>
                           <input
                             type="number"
                             step="0.01"
@@ -1177,7 +1019,7 @@ const Settings: React.FC = () => {
                         )}
                         <div className="flex gap-2">
                           <button onClick={handleSaveFixedCost} className="btn-primary flex-1">
-                            ✓ Speichern
+                            Speichern
                           </button>
                           <button
                             onClick={() => setEditingFixedCost(null)}
@@ -1204,7 +1046,7 @@ const Settings: React.FC = () => {
                             </span>
                             {isPaid && (
                               <span className="text-xs bg-green-500/30 text-green-300 px-2 py-1 rounded-full">
-                                ✓ Bezahlt
+                                Bezahlt
                               </span>
                             )}
                           </div>
@@ -1225,7 +1067,7 @@ const Settings: React.FC = () => {
                             }}
                             className="opacity-0 group-hover:opacity-100 text-blue-400 hover:text-blue-300 transition-opacity"
                           >
-                            ✏️
+                            Bearbeiten
                           </button>
                           <button
                             onClick={(e) => {
@@ -1234,7 +1076,7 @@ const Settings: React.FC = () => {
                             }}
                             className="text-red-400 hover:text-red-300"
                           >
-                            🗑️
+                            Löschen
                           </button>
                         </div>
                       </div>
@@ -1249,144 +1091,384 @@ const Settings: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Passwort ändern - nur für E-Mail-Nutzer */}
-      {user?.providerData?.some(p => p.providerId === 'password') && (
-        <div className="mt-8">
-          <div className="card">
-            <h2 className="text-2xl font-bold mb-4 text-blue-400">🔐 Passwort ändern</h2>
-            <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
-              <div>
-                <label className="block text-sm font-medium mb-2">Aktuelles Passwort</label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="input w-full"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Neues Passwort</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="input w-full"
-                  required
-                />
-                <p className="text-xs text-white/50 mt-1">
-                  Mind. 8 Zeichen, Groß-/Kleinbuchstaben, Zahl, Sonderzeichen
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Neues Passwort bestätigen</label>
-                <input
-                  type="password"
-                  value={confirmNewPassword}
-                  onChange={(e) => setConfirmNewPassword(e.target.value)}
-                  className="input w-full"
-                  required
-                />
-              </div>
-
-              {passwordError && (
-                <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-200 text-sm">
-                  {passwordError}
-                </div>
-              )}
-
-              {passwordSuccess && (
-                <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3 text-green-200 text-sm">
-                  {passwordSuccess}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={changingPassword}
-                className="btn-primary"
-              >
-                {changingPassword ? 'Wird geändert...' : 'Passwort ändern'}
-              </button>
-            </form>
+      {/* 7. Daten-Export/Import - KLAPPBAR */}
+      <div className="card mb-6 bg-gradient-to-br from-green-500/10 to-teal-500/10 border-green-500/20">
+        <div
+          className="flex items-center justify-between cursor-pointer hover:bg-white/5 -mx-2 px-2 py-2 rounded-lg transition-colors"
+          onClick={() => setExportExpanded(!exportExpanded)}
+        >
+          <div className="flex items-center gap-2">
+            <h3 className="text-xl font-bold text-green-300">Daten-Export/Import</h3>
+            <span className="text-white/30 text-sm">{exportExpanded ? '▲' : '▼'}</span>
           </div>
         </div>
-      )}
+        {exportExpanded && (
+          <div className="mt-4">
+            {/* Export */}
+            <div className="mb-6">
+              <h4 className="font-bold mb-2">Daten exportieren</h4>
 
-      {/* Datenverwaltung */}
-      <div className="mt-8">
-        <div className="card bg-gradient-to-br from-orange-500/20 to-red-500/20 border-orange-500/30">
-          <h2 className="text-2xl font-bold mb-4 text-orange-400">⚠️ Datenverwaltung</h2>
-          <p className="text-white/70 mb-6">
-            Hier können Sie Ausgaben löschen. Diese Aktionen können nicht rückgängig gemacht werden!
-          </p>
+              {/* Format-Auswahl */}
+              <div className="flex gap-4 mb-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="exportFormat"
+                    value="json"
+                    checked={exportFormat === 'json'}
+                    onChange={() => setExportFormat('json')}
+                    className="w-4 h-4"
+                  />
+                  <div>
+                    <span className="font-medium">JSON</span>
+                    <p className="text-xs text-white/50">Alle Daten (Backup)</p>
+                  </div>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="exportFormat"
+                    value="csv"
+                    checked={exportFormat === 'csv'}
+                    onChange={() => setExportFormat('csv')}
+                    className="w-4 h-4"
+                  />
+                  <div>
+                    <span className="font-medium">CSV</span>
+                    <p className="text-xs text-white/50">Nur Ausgaben (Excel)</p>
+                  </div>
+                </label>
+              </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <p className="text-sm text-white/60 mb-3">
+                {exportFormat === 'json'
+                  ? 'Vollständiges Backup aller Daten (Ausgaben, Fixkosten, Einnahmen, Bereiche, Schlagworte).'
+                  : 'Nur Ausgaben als CSV-Datei für Excel/Google Sheets.'}
+              </p>
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                className="btn-primary"
+              >
+                {exporting ? 'Exportiere...' : exportFormat === 'json' ? 'JSON exportieren' : 'CSV exportieren'}
+              </button>
+            </div>
+
+            {/* Import */}
             <div>
-              <h3 className="text-lg font-bold mb-4">Ausgaben für einen Monat löschen</h3>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <h4 className="font-bold mb-2">Daten importieren</h4>
+              <p className="text-sm text-white/60 mb-3">
+                Importieren Sie Daten aus einer JSON- oder CSV-Datei. CSV importiert nur Ausgaben.
+              </p>
+
+              {/* Import-Modus */}
+              <div className="flex gap-6 mb-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="importMode"
+                    value="merge"
+                    checked={importMode === 'merge'}
+                    onChange={() => setImportMode('merge')}
+                    className="w-4 h-4"
+                  />
                   <div>
-                    <label className="block text-sm font-medium mb-2">Monat</label>
-                    <select
-                      value={deleteMonth}
-                      onChange={(e) => setDeleteMonth(parseInt(e.target.value))}
-                      className="select w-full"
-                    >
-                      {monthNames.map((month, index) => (
-                        <option key={index} value={index}>
-                          {month}
-                        </option>
-                      ))}
-                    </select>
+                    <span className="font-medium">Ergänzen</span>
+                    <p className="text-xs text-white/50">Daten werden hinzugefügt</p>
                   </div>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="importMode"
+                    value="replace"
+                    checked={importMode === 'replace'}
+                    onChange={() => setImportMode('replace')}
+                    className="w-4 h-4"
+                  />
                   <div>
-                    <label className="block text-sm font-medium mb-2">Jahr</label>
-                    <select
-                      value={deleteYear}
-                      onChange={(e) => setDeleteYear(parseInt(e.target.value))}
-                      className="select w-full"
-                    >
-                      {Array.from({ length: 3 }, (_, i) => {
-                        const year = new Date().getFullYear() - 1 + i;
-                        return (
-                          <option key={year} value={year}>
-                            {year}
-                          </option>
-                        );
-                      })}
-                    </select>
+                    <span className="font-medium text-orange-300">Ersetzen</span>
+                    <p className="text-xs text-white/50">Alle Daten werden überschrieben</p>
                   </div>
+                </label>
+              </div>
+
+              <label className="block">
+                <input
+                  type="file"
+                  accept=".json,.csv"
+                  onChange={handleImport}
+                  disabled={importing}
+                  className="block w-full text-sm text-white/60
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-lg file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-green-500/20 file:text-green-300
+                    hover:file:bg-green-500/30
+                    file:cursor-pointer
+                    disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </label>
+              {importing && (
+                <p className="text-sm text-white/60 mt-2">Importiere Daten...</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 8. Datenschutz & Speicherung - KLAPPBAR */}
+      <div className="card mb-6 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20">
+        <div
+          className="flex items-center justify-between cursor-pointer hover:bg-white/5 -mx-2 px-2 py-2 rounded-lg transition-colors"
+          onClick={() => setStorageExpanded(!storageExpanded)}
+        >
+          <div className="flex items-center gap-2">
+            <h3 className="text-xl font-bold text-blue-300">Datenschutz & Speicherung</h3>
+            <span className="text-white/30 text-sm">{storageExpanded ? '▲' : '▼'}</span>
+          </div>
+          <span className="text-sm text-white/50">
+            {userSettings?.storageMode === 'cloud' ? 'Cloud' : 'Lokal'}
+          </span>
+        </div>
+        {storageExpanded && (
+          <div className="mt-4">
+            <p className="text-sm text-white/60 mb-4">
+              Wählen Sie, wo Ihre Finanzdaten gespeichert werden sollen.
+            </p>
+
+            <div className="space-y-3">
+              {/* Cloud Option */}
+              <label
+                className={`flex items-start gap-4 p-4 rounded-lg cursor-pointer transition-all ${
+                  userSettings?.storageMode === 'cloud'
+                    ? 'bg-blue-500/20 border-2 border-blue-400'
+                    : 'bg-white/5 border-2 border-transparent hover:border-white/20'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="storageMode"
+                  value="cloud"
+                  checked={userSettings?.storageMode === 'cloud'}
+                  onChange={() => handleStorageModeChange('cloud')}
+                  disabled={storageModeChanging}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-blue-300">Cloud-Speicherung</span>
+                    <span className="text-xs bg-green-500/30 text-green-300 px-2 py-0.5 rounded-full">Empfohlen</span>
+                  </div>
+                  <p className="text-sm text-white/60 mt-1">
+                    Daten werden sicher in der Cloud (Firebase) gespeichert.
+                  </p>
+                  <ul className="text-xs text-white/50 mt-2 space-y-1">
+                    <li>Sync zwischen allen Geräten</li>
+                    <li>Automatische Backups</li>
+                    <li>Daten sicher bei Geräteverlust</li>
+                  </ul>
                 </div>
+              </label>
+
+              {/* Lokal Option */}
+              <label
+                className={`flex items-start gap-4 p-4 rounded-lg cursor-pointer transition-all ${
+                  userSettings?.storageMode === 'local'
+                    ? 'bg-orange-500/20 border-2 border-orange-400'
+                    : 'bg-white/5 border-2 border-transparent hover:border-white/20'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="storageMode"
+                  value="local"
+                  checked={userSettings?.storageMode === 'local'}
+                  onChange={() => handleStorageModeChange('local')}
+                  disabled={storageModeChanging}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-orange-300">Nur lokale Speicherung</span>
+                  </div>
+                  <p className="text-sm text-white/60 mt-1">
+                    Daten werden nur auf diesem Gerät gespeichert (IndexedDB).
+                  </p>
+                  <ul className="text-xs text-white/50 mt-2 space-y-1">
+                    <li>Maximaler Datenschutz</li>
+                    <li>Keine Cloud-Verbindung nötig</li>
+                    <li>Kein Sync zwischen Geräten</li>
+                    <li>Datenverlust bei Geräteverlust möglich</li>
+                  </ul>
+                </div>
+              </label>
+            </div>
+
+            {storageModeChanging && (
+              <p className="text-sm text-white/60 mt-4">Speichermodus wird geändert...</p>
+            )}
+
+            {storageModeSuccess && (
+              <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3 text-green-200 text-sm mt-4">
+                {storageModeSuccess}
+              </div>
+            )}
+
+            <p className="text-xs text-white/40 mt-4">
+              Hinweis: Bereits gespeicherte Daten werden nicht automatisch migriert.
+              Bei Wechsel des Speichermodus bleiben bestehende Daten an ihrem Ort erhalten.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* 9. Datenverwaltung - KLAPPBAR */}
+      <div className="card mb-6 bg-gradient-to-br from-orange-500/20 to-red-500/20 border-orange-500/30">
+        <div
+          className="flex items-center justify-between cursor-pointer hover:bg-white/5 -mx-2 px-2 py-2 rounded-lg transition-colors"
+          onClick={() => setDataManagementExpanded(!dataManagementExpanded)}
+        >
+          <div className="flex items-center gap-2">
+            <h3 className="text-xl font-bold text-orange-400">Datenverwaltung</h3>
+            <span className="text-white/30 text-sm">{dataManagementExpanded ? '▲' : '▼'}</span>
+          </div>
+        </div>
+        {dataManagementExpanded && (
+          <div className="mt-4">
+            <p className="text-white/70 mb-6">
+              Hier können Sie Ausgaben löschen. Diese Aktionen können nicht rückgängig gemacht werden!
+            </p>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <h4 className="text-lg font-bold mb-4">Ausgaben für einen Monat löschen</h4>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Monat</label>
+                      <select
+                        value={deleteMonth}
+                        onChange={(e) => setDeleteMonth(parseInt(e.target.value))}
+                        className="select w-full"
+                      >
+                        {monthNames.map((month, index) => (
+                          <option key={index} value={index}>
+                            {month}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Jahr</label>
+                      <select
+                        value={deleteYear}
+                        onChange={(e) => setDeleteYear(parseInt(e.target.value))}
+                        className="select w-full"
+                      >
+                        {Array.from({ length: 3 }, (_, i) => {
+                          const year = new Date().getFullYear() - 1 + i;
+                          return (
+                            <option key={year} value={year}>
+                              {year}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteExpenses(false)}
+                    disabled={deleting}
+                    className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                  >
+                    {deleting ? 'Löschen...' : `Ausgaben für ${monthNames[deleteMonth]} ${deleteYear} löschen`}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-lg font-bold mb-4">Alle Ausgaben löschen</h4>
+                <p className="text-white/60 mb-4">
+                  Löscht alle Ausgaben aus allen Monaten. Dies kann NICHT rückgängig gemacht werden!
+                </p>
                 <button
-                  onClick={() => handleDeleteExpenses(false)}
+                  onClick={() => handleDeleteExpenses(true)}
                   disabled={deleting}
-                  className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                  className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
                 >
-                  {deleting ? 'Löschen...' : `Ausgaben für ${monthNames[deleteMonth]} ${deleteYear} löschen`}
+                  {deleting ? 'Löschen...' : 'Alle Ausgaben löschen'}
                 </button>
               </div>
             </div>
-
-            <div>
-              <h3 className="text-lg font-bold mb-4">Alle Ausgaben löschen</h3>
-              <p className="text-white/60 mb-4">
-                Löscht alle Ausgaben aus allen Monaten. Dies kann NICHT rückgängig gemacht werden!
-              </p>
-              <button
-                onClick={() => handleDeleteExpenses(true)}
-                disabled={deleting}
-                className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
-              >
-                {deleting ? 'Löschen...' : 'Alle Ausgaben löschen'}
-              </button>
-            </div>
           </div>
-        </div>
+        )}
       </div>
+
+      {/* 10. Passwort ändern - nur für E-Mail-Nutzer */}
+      {user?.providerData?.some(p => p.providerId === 'password') && (
+        <div className="card">
+          <h2 className="text-2xl font-bold mb-4 text-blue-400">Passwort ändern</h2>
+          <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+            <div>
+              <label className="block text-sm font-medium mb-2">Aktuelles Passwort</label>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="input w-full"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Neues Passwort</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="input w-full"
+                required
+              />
+              <p className="text-xs text-white/50 mt-1">
+                Mind. 8 Zeichen, Gross-/Kleinbuchstaben, Zahl, Sonderzeichen
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Neues Passwort bestätigen</label>
+              <input
+                type="password"
+                value={confirmNewPassword}
+                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                className="input w-full"
+                required
+              />
+            </div>
+
+            {passwordError && (
+              <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-200 text-sm">
+                {passwordError}
+              </div>
+            )}
+
+            {passwordSuccess && (
+              <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3 text-green-200 text-sm">
+                {passwordSuccess}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={changingPassword}
+              className="btn-primary"
+            >
+              {changingPassword ? 'Wird geändert...' : 'Passwort ändern'}
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 };
