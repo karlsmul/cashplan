@@ -668,20 +668,20 @@ const Settings: React.FC = () => {
 
       {/* 3. Einnahmen (Liste) - NICHT klappbar */}
       <div className="card mb-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
           <h3 className="text-xl font-bold text-green-300">
             Einnahmen für {getMonthName(selectedMonth)} {selectedYear}
           </h3>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <span className="font-bold text-green-400">{formatCurrency(totalIncomes)}</span>
             <select
               value={incomeSortBy}
               onChange={(e) => setIncomeSortBy(e.target.value as 'name' | 'amount-desc' | 'amount-asc')}
-              className="select text-sm"
+              className="select text-sm min-w-0"
             >
-              <option value="name">Nach Name</option>
-              <option value="amount-desc">Betrag absteigend</option>
-              <option value="amount-asc">Betrag aufsteigend</option>
+              <option value="name">Name</option>
+              <option value="amount-desc">Betrag ↓</option>
+              <option value="amount-asc">Betrag ↑</option>
             </select>
           </div>
         </div>
@@ -915,7 +915,7 @@ const Settings: React.FC = () => {
       {/* 6. Fixkosten (Liste) - KLAPPBAR */}
       <div className="card mb-6">
         <div
-          className="flex items-center justify-between cursor-pointer hover:bg-white/5 -mx-2 px-2 py-2 rounded-lg transition-colors"
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 cursor-pointer hover:bg-white/5 -mx-2 px-2 py-2 rounded-lg transition-colors"
           onClick={() => setFixedCostListExpanded(!fixedCostListExpanded)}
         >
           <div className="flex items-center gap-2">
@@ -928,18 +928,18 @@ const Settings: React.FC = () => {
         </div>
         {fixedCostListExpanded && (
           <div className="mt-4">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
               <p className="text-sm text-white/60">
-                Klicken Sie auf eine Fixkosten-Karte, um sie für diesen Monat als bezahlt zu markieren
+                Klicken um als bezahlt zu markieren
               </p>
               <select
                 value={fixedCostSortBy}
                 onChange={(e) => setFixedCostSortBy(e.target.value as 'name' | 'amount-desc' | 'amount-asc')}
-                className="select text-sm"
+                className="select text-sm min-w-0"
               >
-                <option value="name">Nach Name</option>
-                <option value="amount-desc">Betrag absteigend</option>
-                <option value="amount-asc">Betrag aufsteigend</option>
+                <option value="name">Name</option>
+                <option value="amount-desc">Betrag ↓</option>
+                <option value="amount-asc">Betrag ↑</option>
               </select>
             </div>
             <div className="space-y-3">
