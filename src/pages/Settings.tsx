@@ -32,8 +32,8 @@ const Settings: React.FC = () => {
   const [weeklyBudgetInput, setWeeklyBudgetInput] = useState('');
 
   // Monatswähler
-  const [selectedMonth, setSelectedMonth] = useState(0); // Januar
-  const [selectedYear, setSelectedYear] = useState(2026);
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
   const selectedYearMonth = selectedYear * 100 + (selectedMonth + 1);
 
   const [newFixedCost, setNewFixedCost] = useState({

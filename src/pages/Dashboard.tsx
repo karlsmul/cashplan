@@ -31,8 +31,8 @@ const getFrequentDescriptions = (expenses: Expense[]): string[] => {
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [currentDate] = useState(new Date());
-  const [selectedMonth, setSelectedMonth] = useState(0); // Januar
-  const [selectedYear, setSelectedYear] = useState(2026);
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);

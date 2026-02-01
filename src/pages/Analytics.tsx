@@ -20,8 +20,8 @@ import AreaYearlyStats from '../components/AreaYearlyStats';
 const Analytics: React.FC = () => {
   const { user } = useAuth();
   const currentYear = new Date().getFullYear();
-  const [selectedMonth, setSelectedMonth] = useState(0); // Januar
-  const [selectedYear, setSelectedYear] = useState(2026);
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
   const [alltagSortBy, setAlltagSortBy] = useState<'date' | 'amount-desc' | 'amount-asc'>('date');
   const [sonderpostenSortBy, setSonderpostenSortBy] = useState<'date' | 'amount-desc' | 'amount-asc'>('date');
   const [alltagExpanded, setAlltagExpanded] = useState(false);
