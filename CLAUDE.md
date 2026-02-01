@@ -80,7 +80,7 @@ Configured via `vite-plugin-pwa`. Service worker handles caching:
 
 ---
 
-## Projekt-Backup (Stand: 20. Januar 2026)
+## Projekt-Backup (Stand: 1. Februar 2026)
 
 ### Aktuelle Features
 
@@ -90,11 +90,14 @@ Configured via `vite-plugin-pwa`. Service worker handles caching:
   - React Portal für korrektes Z-Index-Verhalten
   - Fuzzy-Matching (Akzent-insensitiv: "cafe" = "Café")
   - Tastaturnavigation (Pfeiltasten, Enter, Escape)
+  - **Nutzt komplette Historie** - Vorschläge basieren auf ALLEN bisherigen Ausgaben, nicht nur dem aktuellen Monat
 - Fixkosten mit Wiederholungsintervall (monatlich, einmalig)
 - Einnahmen pro Monat
+- **Automatischer Monatswechsel** - Dashboard zeigt automatisch den aktuellen Monat/Jahr an
 
 #### 2. Analytics-Seite
 - Monats- und Jahresübersicht
+- **Automatischer Monatswechsel** - zeigt automatisch den aktuellen Monat/Jahr an
 - Keyword-Filter zum Ausblenden bestimmter Ausgaben
 - **Bereichs-basierte Statistik**:
   - Benutzerdefinierte Bereiche (z.B. "Lebensmittel", "Transport", "Sparen")
@@ -113,6 +116,7 @@ Configured via `vite-plugin-pwa`. Service worker handles caching:
 #### 3. Einstellungen
 - Wahl zwischen Cloud- und lokaler Speicherung
 - Info-Seite zur Datenspeicherung
+- **Automatischer Monatswechsel** - zeigt automatisch den aktuellen Monat/Jahr an
 
 ### Firestore Collections
 
@@ -190,6 +194,11 @@ src/
 5. **Fixkosten in Bereichs-Statistik**: Fixkosten werden wie Ausgaben den Bereichen zugeordnet
    - `matchFixedCostToArea()` matched Fixkosten-Namen gegen Bereichs-Keywords
    - Ermöglicht z.B. Bereich "Sparen" mit Keyword "spar" → matched "ETF Sparplan"
+
+6. **Autocomplete mit kompletter Historie**:
+   - `subscribeToAllExpenses()` in firestore.ts lädt alle Ausgaben ohne Datumsfilter
+   - Dashboard nutzt separaten State `allExpenses` für Autocomplete-Vorschläge
+   - Monatswechsel beeinflusst Autocomplete nicht - Vorschläge bleiben verfügbar
 
 6. **Einheitliches Logo**: Beide Seiten (Login und Header) verwenden `/logo.png` mit gleichem Styling
 
