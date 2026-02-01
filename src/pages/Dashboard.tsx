@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Expense, FixedCost, Income, UserSettings } from '../types';
 import {
   subscribeToExpenses,
+  subscribeToAllExpenses,
   subscribeToFixedCosts,
   subscribeToIncomes,
   subscribeToUserSettings
@@ -34,6 +35,7 @@ const Dashboard: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [allExpenses, setAllExpenses] = useState<Expense[]>([]); // Für Autocomplete-Historie
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
@@ -46,6 +48,20 @@ const Dashboard: React.FC = () => {
   const weeks = getWeeksInMonth(selectedYear, selectedMonth);
   const selectedYearMonth = selectedYear * 100 + (selectedMonth + 1);
 
+  // Lade alle Ausgaben für Autocomplete (unabhängig vom ausgewählten Monat)
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubscribe = subscribeToAllExpenses(
+      user.uid,
+      (data) => setAllExpenses(data),
+      (err) => console.error('Fehler beim Laden der Autocomplete-Historie:', err)
+    );
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Lade monatsspezifische Daten
   useEffect(() => {
     if (!user) return;
 
@@ -108,8 +124,8 @@ const Dashboard: React.FC = () => {
 
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
-  // Häufige Beschreibungen für Autocomplete
-  const descriptionSuggestions = useMemo(() => getFrequentDescriptions(expenses), [expenses]);
+  // Häufige Beschreibungen für Autocomplete (basierend auf ALLEN historischen Ausgaben)
+  const descriptionSuggestions = useMemo(() => getFrequentDescriptions(allExpenses), [allExpenses]);
 
   const balance = totalIncome - monthlyFixedCosts - totalExpenses;
 

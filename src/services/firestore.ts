@@ -656,6 +656,32 @@ export const subscribeToExpenseAreas = (
   );
 };
 
+// Real-time listener für ALLE Expenses (für Autocomplete)
+export const subscribeToAllExpenses = (
+  userId: string,
+  callback: (expenses: Expense[]) => void,
+  onError?: (error: Error) => void
+) => {
+  const expensesRef = collection(db, 'expenses');
+  const q = query(expensesRef, where('userId', '==', userId));
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const expenses = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        date: doc.data().date.toDate()
+      })) as Expense[];
+      callback(expenses);
+    },
+    (error) => {
+      console.error('subscribeToAllExpenses Fehler:', error);
+      onError?.(new Error(`Fehler beim Laden aller Ausgaben: ${error.message}`));
+    }
+  );
+};
+
 // Alle Expenses eines Jahres abrufen (für Jahresstatistik)
 export const getExpensesForYear = async (userId: string, year: number): Promise<Expense[]> => {
   try {
